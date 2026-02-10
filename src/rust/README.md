@@ -536,10 +536,10 @@ kill %1
 src/
 ├── Cargo.toml          # Project manifest with dependencies
 ├── .env               # Environment variable template
-├── README.md          # This file
 ├── database/          # Database schema files
 │   └── 01_users_schema.sql
 └── rust/
+    ├── README.md      # This file
     ├── main.rs        # HTTP server and handlers
     └── db.rs          # Database connection and queries
 ```
