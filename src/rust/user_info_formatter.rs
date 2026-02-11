@@ -1,4 +1,4 @@
-msguse crate::db::User;
+use crate::db::User;
 
 /// Constructs a display name from user fields with prioritized fallback logic
 pub fn construct_name(
