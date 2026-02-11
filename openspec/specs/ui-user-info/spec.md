@@ -49,6 +49,17 @@ The system SHALL handle errors gracefully when retrieving user information.
 - **THEN** an error message is displayed to the user
 - AND user is offered options to navigate back
 
+### Requirement: Page Heading Display
+The system SHALL display "Greetings!" as the h1 page heading on the user-info page.
+
+#### Scenario: Heading is displayed on page load
+- **WHEN** the user-info page loads successfully
+- **THEN** the page displays an h1 heading with the text "Greetings!"
+
+#### Scenario: Heading provides page context
+- **WHEN** user views the user-info page
+- **THEN** the "Greetings!" heading clearly indicates the page contains personalized greeting content
+
 #### Scenario: Server error during retrieval (500, 503)
 - **WHEN** system receives a 500 or 503 error response from `/api/users/{user_id}`
 - **THEN** plain text error message is displayed to the user
