@@ -25,13 +25,23 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
   return response.data;
 }
 
-export async function getUserInfo(userId: number): Promise<UserInfoResponse> {
-  const response = await api.get<UserInfoResponse>(`/users/${userId}`);
+export async function getUserInfo(userId: number): Promise<string> {
+  const response = await api.get(`/users/${userId}`, {
+    responseType: 'text',
+    headers: {
+      'Accept': 'text/plain',
+    },
+  });
   return response.data;
 }
 
 export function extractErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error) && error.response?.data) {
+    // Handle plain text error responses
+    if (typeof error.response.data === 'string') {
+      return error.response.data;
+    }
+    // Handle JSON error responses (for backwards compatibility with other endpoints)
     const data = error.response.data as ErrorResponse;
     if (data.message) {
       return data.message;
