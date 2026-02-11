@@ -1,4 +1,5 @@
 mod db;
+mod user_info_formatter;
 
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
@@ -7,6 +8,7 @@ use log::info;
 
 // Re-export database types
 use db::{Database, CreateUserRequest, User, DatabaseError};
+use user_info_formatter::format_user_greeting;
 
 // ============ Request/Response Structs ============
 
@@ -256,38 +258,44 @@ async fn get_user_info(
             match db.find_user_by_id(user_id).await {
                 Ok(user) => {
                     info!("User info retrieved for ID: {}", user_id);
-                    let response: UserInfoResponse = user.into();
-                    HttpResponse::Ok().json(response)
+                    let greeting = format_user_greeting(user);
+                    HttpResponse::Ok()
+                        .content_type("text/plain; charset=utf-8")
+                        .body(greeting)
                 }
                 Err(DatabaseError::UserNotFound) => {
                     info!("User not found with ID: {}", user_id);
-                    HttpResponse::NotFound().json(ErrorResponse {
-                        error: "USER_NOT_FOUND".to_string(),
-                        message: format!("User with ID {} not found", user_id),
-                    })
+                    HttpResponse::NotFound()
+                        .content_type("text/plain; charset=utf-8")
+                        .body(format!("User with ID {} not found", user_id))
                 }
                 Err(DatabaseError::ConnectionError(_)) => {
                     log::error!("Database connection error");
-                    HttpResponse::ServiceUnavailable().json(ErrorResponse {
-                        error: "DATABASE_UNAVAILABLE".to_string(),
-                        message: "Database connection failed".to_string(),
-                    })
+                    HttpResponse::ServiceUnavailable()
+                        .content_type("text/plain; charset=utf-8")
+                        .body("Database connection failed")
                 }
                 Err(e) => {
                     log::error!("Error fetching user: {:?}", e);
-                    HttpResponse::InternalServerError().json(ErrorResponse {
-                        error: "INTERNAL_ERROR".to_string(),
-                        message: "Failed to fetch user".to_string(),
-                    })
+                    HttpResponse::InternalServerError()
+                        .content_type("text/plain; charset=utf-8")
+                        .body("Failed to fetch user")
                 }
             }
         }
-        _ => {
+        Ok(_) => {
+            // Negative or zero user_id
+            info!("Invalid user_id (non-positive): {}", user_id_str);
+            HttpResponse::BadRequest()
+                .content_type("text/plain; charset=utf-8")
+                .body("user_id must be a positive integer")
+        }
+        Err(_) => {
+            // Non-numeric user_id
             info!("Invalid user_id format: {}", user_id_str);
-            HttpResponse::BadRequest().json(ErrorResponse {
-                error: "VALIDATION_ERROR".to_string(),
-                message: "user_id must be a positive integer".to_string(),
-            })
+            HttpResponse::BadRequest()
+                .content_type("text/plain; charset=utf-8")
+                .body("user_id must be a valid integer")
         }
     }
 }
@@ -340,6 +348,8 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    mod user_info_formatter_test;
 
     #[test]
     fn test_create_user_payload_validation() {
