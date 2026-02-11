@@ -38,7 +38,7 @@ ROLLBACK;
 START TRANSACTION;
 SELECT 'Test 1.3: Missing required fields - username NULL' AS test_name;
 -- This would fail if username is NOT NULL
--- INSERT INTO users (username, password) VALUES (NULL, 'password123');
+INSERT INTO users (username, password) VALUES (NULL, 'password123');
 SELECT 'Cannot insert NULL username - constraint enforced by database schema' AS result;
 ROLLBACK;
 
@@ -47,7 +47,7 @@ ROLLBACK;
 START TRANSACTION;
 SELECT 'Test 1.4: Oversized username (>16 chars)' AS test_name;
 -- This username is 20 characters - exceeds the VARCHAR(16) limit
--- INSERT INTO users (username, password) VALUES ('this_is_a_very_long_username', 'pass123');
+INSERT INTO users (username, password) VALUES ('this_is_a_very_long_username', 'pass123');
 SELECT 'Username "this_is_a_very_long_username" (20 chars) exceeds max 16 chars' AS description;
 SELECT 'This test verifies the VARCHAR(16) constraint on username column' AS result;
 ROLLBACK;

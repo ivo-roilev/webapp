@@ -1,7 +1,7 @@
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use sqlx::Row;
 use std::time::Duration;
-use chrono::NaiveDateTime;
+// use chrono::NaiveDateTime;
 
 #[derive(Debug, Clone)]
 pub struct User {
@@ -13,8 +13,8 @@ pub struct User {
     pub email: Option<String>,
     pub title: Option<String>,
     pub hobby: Option<String>,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    // pub created_at: NaiveDateTime,
+    // pub updated_at: NaiveDateTime,
 }
 
 #[derive(Debug)]
@@ -68,8 +68,8 @@ impl Database {
                 let host = std::env::var("DATABASE_HOST").unwrap_or_else(|_| "localhost".to_string());
                 let port = std::env::var("DATABASE_PORT").unwrap_or_else(|_| "3306".to_string());
                 let user = std::env::var("DATABASE_USER").unwrap_or_else(|_| "root".to_string());
-                let password = std::env::var("DATABASE_PASSWORD").unwrap_or_else(|_| "password".to_string());
-                let database = std::env::var("DATABASE_NAME").unwrap_or_else(|_| "user_management".to_string());
+                let password = std::env::var("DATABASE_PASSWORD").unwrap_or_else(|_| "".to_string());
+                let database = std::env::var("DATABASE_NAME").unwrap_or_else(|_| "webapp_db".to_string());
 
                 Ok(format!(
                     "mysql://{}:{}@{}:{}/{}?charset=utf8mb4",
@@ -124,7 +124,7 @@ impl Database {
     /// Find user by ID
     pub async fn find_user_by_id(&self, id: i32) -> Result<User, DatabaseError> {
         let user = sqlx::query_as::<_, User>(
-            "SELECT id, username, password, first_name, last_name, email, title, hobby, created_at, updated_at
+            "SELECT id, username, password, first_name, last_name, email, title, hobby
              FROM users WHERE id = ?"
         )
         .bind(id)
@@ -147,8 +147,8 @@ impl sqlx::FromRow<'_, sqlx::mysql::MySqlRow> for User {
             email: row.try_get("email")?,
             title: row.try_get("title")?,
             hobby: row.try_get("hobby")?,
-            created_at: row.try_get("created_at")?,
-            updated_at: row.try_get("updated_at")?,
+            // created_at: row.try_get("created_at")?,
+            // updated_at: row.try_get("updated_at")?,
         })
     }
 }

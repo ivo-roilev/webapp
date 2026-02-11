@@ -46,8 +46,8 @@ pub struct UserInfoResponse {
     pub email: Option<String>,
     pub title: Option<String>,
     pub hobby: Option<String>,
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: chrono::NaiveDateTime,
+//    pub created_at: chrono::NaiveDateTime,
+    // pub updated_at: chrono::NaiveDateTime,
 }
 
 impl From<User> for UserInfoResponse {
@@ -60,8 +60,8 @@ impl From<User> for UserInfoResponse {
             email: user.email,
             title: user.title,
             hobby: user.hobby,
-            created_at: user.created_at,
-            updated_at: user.updated_at,
+            // created_at: user.created_at,
+            // updated_at: user.updated_at,
         }
     }
 }
@@ -418,8 +418,8 @@ mod tests {
             email: Some("test@example.com".to_string()),
             title: Some("Engineer".to_string()),
             hobby: Some("Reading".to_string()),
-            created_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
-            updated_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+            // created_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+            // updated_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
         };
 
         let json = serde_json::to_string(&user_response);
@@ -512,8 +512,8 @@ mod tests {
             email: Some("john@example.com".to_string()),
             title: Some("Manager".to_string()),
             hobby: Some("Gaming".to_string()),
-            created_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
-            updated_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+            // created_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+            // updated_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
         };
 
         // Verify all fields are accessible
