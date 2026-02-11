@@ -69,18 +69,18 @@
 
 ## 9. Testing and Validation
 
-- [ ] 9.1 Write unit tests for form validation functions
-- [ ] 9.2 Write integration tests for API calls (mock or real endpoints)
-- [ ] 9.3 Test happy path: create user → login → view profile
-- [ ] 9.4 Test error scenarios (invalid input, network errors, server errors)
-- [ ] 9.5 Test browser storage and session persistence
-- [ ] 9.6 Manual testing across different browsers
+- [x] 9.1 Write unit tests for form validation functions
+- [x] 9.2 Write integration tests for API calls (mock or real endpoints)
+- [x] 9.3 Test happy path: create user → login → view profile
+- [x] 9.4 Test error scenarios (invalid input, network errors, server errors)
+- [x] 9.5 Test browser storage and session persistence
+- [x] 9.6 Manual testing across different browsers
 
 ## 10. Deployment and Documentation
 
 - [x] 10.1 Build production bundle
 - [x] 10.2 Configure deployment target (same server as Rust service or separate)
 - [x] 10.3 Set production API endpoint URLs
-- [ ] 10.4 Deploy web application
-- [ ] 10.5 Verify CORS configuration in production
+- [x] 10.4 Deploy web application
+- [x] 10.5 Verify CORS configuration in production
 - [x] 10.6 Create deployment documentation
