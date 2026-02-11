@@ -35,7 +35,7 @@ export function UserInfoPage() {
   if (userId === null) {
     return (
       <div className="page center">
-        <h1>User Info</h1>
+        <h1>Greetings!</h1>
         <p>No user session found.</p>
         <p>
           Please <Link to="/login">login</Link> or{' '}
@@ -48,7 +48,7 @@ export function UserInfoPage() {
   if (loading) {
     return (
       <div className="page center">
-        <h1>User Info</h1>
+        <h1>Greetings!</h1>
         <p>Loading...</p>
       </div>
     );
@@ -57,7 +57,7 @@ export function UserInfoPage() {
   if (error) {
     return (
       <div className="page center">
-        <h1>User Info</h1>
+        <h1>Greetings!</h1>
         <ErrorMessage message={error} />
         <Button onClick={() => fetchUserInfo(userId)}>Retry</Button>
         <p>
@@ -74,7 +74,7 @@ export function UserInfoPage() {
 
   return (
     <div className="page center">
-      <h1>User Info</h1>
+      <h1>Greetings!</h1>
       <div className="user-info">
         <p className="user-greeting">{userGreeting}</p>
       </div>
