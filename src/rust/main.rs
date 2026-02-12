@@ -2,6 +2,7 @@ mod db;
 mod user_info_formatter;
 
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use actix_cors::Cors;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use log::info;
@@ -333,7 +334,10 @@ async fn main() -> std::io::Result<()> {
     info!("Starting HTTP server on {}", bind_addr);
 
     HttpServer::new(move || {
+        let cors = Cors::permissive();
+
         App::new()
+            .wrap(cors)
             .app_data(db_data.clone())
             .route("/health", web::get().to(health_check))
             .route("/api/users", web::post().to(create_user))

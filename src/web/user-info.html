@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Info - User Management</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">🌙</button>
+
+  <div class="page-container">
+    <div class="card">
+      <h1>User Information</h1>
+
+      <div id="loadingMessage" class="loading">Loading your information</div>
+      <div id="errorMessage" class="error-message hidden"></div>
+      <div id="greetingContainer" class="hidden">
+        <p class="greeting" id="greetingText"></p>
+        <button id="logoutButton">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Theme toggle functionality
+    const themeToggle = document.getElementById('themeToggle');
+    const htmlElement = document.documentElement;
+
+    // Load theme from localStorage or detect system preference
+    function loadTheme() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        htmlElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcon(savedTheme);
+      } else {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = prefersDark ? 'dark' : 'light';
+        htmlElement.setAttribute('data-theme', theme);
+        updateThemeIcon(theme);
+      }
+    }
+
+    function updateThemeIcon(theme) {
+      themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    themeToggle.addEventListener('click', () => {
+      const currentTheme = htmlElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      htmlElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      updateThemeIcon(newTheme);
+    });
+
+    loadTheme();
+
+    // User info fetching
+    const loadingMessage = document.getElementById('loadingMessage');
+    const errorMessage = document.getElementById('errorMessage');
+    const greetingContainer = document.getElementById('greetingContainer');
+    const greetingText = document.getElementById('greetingText');
+    const logoutButton = document.getElementById('logoutButton');
+
+    // Check for user_id in localStorage
+    const userId = localStorage.getItem('user_id');
+
+    if (!userId) {
+      // No user_id found, redirect to login
+      window.location.href = 'login.html';
+    } else {
+      // Fetch user greeting
+      fetchUserGreeting(userId);
+    }
+
+    async function fetchUserGreeting(userId) {
+      try {
+        const response = await fetch(`http://localhost:8080/api/users/${userId}`, {
+          method: 'GET',
+        });
+
+        if (response.ok) {
+          const greeting = await response.text();
+          loadingMessage.classList.add('hidden');
+          greetingText.textContent = greeting || 'Welcome!';
+          greetingContainer.classList.remove('hidden');
+        } else {
+          const errorText = await response.text();
+          showError(errorText || 'Failed to load user information.');
+        }
+      } catch (error) {
+        showError('Network error. Please check your connection and try again.');
+      }
+    }
+
+    function showError(message) {
+      loadingMessage.classList.add('hidden');
+      errorMessage.textContent = message;
+      errorMessage.classList.remove('hidden');
+
+      // Add retry button
+      const retryButton = document.createElement('button');
+      retryButton.textContent = 'Retry';
+      retryButton.className = 'button-secondary';
+      retryButton.style.marginTop = '20px';
+      retryButton.addEventListener('click', () => {
+        errorMessage.classList.add('hidden');
+        loadingMessage.classList.remove('hidden');
+        if (retryButton.parentNode) {
+          retryButton.parentNode.removeChild(retryButton);
+        }
+        const userId = localStorage.getItem('user_id');
+        fetchUserGreeting(userId);
+      });
+
+      if (!document.querySelector('.button-secondary')) {
+        document.querySelector('.card').appendChild(retryButton);
+      }
+    }
+
+    // Logout functionality
+    logoutButton.addEventListener('click', () => {
+      localStorage.removeItem('user_id');
+      window.location.href = 'login.html';
+    });
+  </script>
+</body>
+
+</html>

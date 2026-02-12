@@ -116,8 +116,8 @@ The proposal seeks to drastically simplify the web layer while maintaining ident
 - Thoroughly clean the previous implementation - the history is kept in git
 
 ### Phase 2: Test New Static Pages
-- Run static pages locally on port 8000 or similar
-- Test against same API endpoints as React app
+- Run static pages locally on port 3000 or similar
+- Test against same API endpoints as React app (running on port 8080)
 - Verify all three flows: login, create user, view user info
 
 ### Phase 3: Cutover
@@ -139,4 +139,4 @@ The proposal seeks to drastically simplify the web layer while maintaining ident
 1. Should we support older browsers (IE, Safari <14)? → Recommend NO, document minimum versions
 3. Should we add HTTPS/security headers? → Yes, but at web server level, not in HTML/JS
 4. Should we add analytics or tracking? → Recommend NO for MVP, add later if needed
-5. How should the environment (API base URL) be configured? → Currently hardcoded to `http://localhost:8000`. Should this use `.env` or config file?: Use the recommended server configuration method.
+5. How should the environment (API base URL) be configured? → Currently hardcoded to `http://localhost:8080`. Should this use `.env` or config file?: Use the recommended server configuration method.
