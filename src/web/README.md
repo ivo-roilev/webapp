@@ -105,7 +105,7 @@ These versions support:
 1. Page checks for user_id in localStorage
 2. If missing, auto-redirects to login.html
 3. If present, fetches greeting from API
-4. Displays greeting with logout button
+4. Displays greeting message
 
 ### Theme Toggle
 1. Click moon/sun button in top-right corner

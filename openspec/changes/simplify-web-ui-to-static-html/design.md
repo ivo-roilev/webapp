@@ -47,7 +47,6 @@ The proposal seeks to drastically simplify the web layer while maintaining ident
 **Rationale**:
 - Browser localStorage persists across page reloads
 - No server-side session management needed
-- Logout simply clears localStorage
 - Standard browser API, no library needed
 
 **Alternatives Considered**:

@@ -39,7 +39,7 @@
 
 - [ ] 5.1 Test login flow with valid/invalid credentials and error handling
 - [ ] 5.2 Test user creation flow with all fields and required-only fields
-- [ ] 5.3 Test user-info display, auto-redirect when no session, and logout
+- [ ] 5.3 Test user-info display and auto-redirect when no session
 - [ ] 5.4 Test theme toggle persistence across page reloads on all pages
 - [ ] 5.5 Test responsive design on mobile (320px), tablet (768px), desktop (1200px+)
 - [ ] 5.6 Test on Chrome 90+, Safari 14+, Firefox 88+

@@ -19,7 +19,6 @@
       <div id="errorMessage" class="error-message hidden"></div>
       <div id="greetingContainer" class="hidden">
         <p class="greeting" id="greetingText"></p>
-        <button id="logoutButton">Logout</button>
       </div>
     </div>
   </div>
@@ -62,7 +61,6 @@
     const errorMessage = document.getElementById('errorMessage');
     const greetingContainer = document.getElementById('greetingContainer');
     const greetingText = document.getElementById('greetingText');
-    const logoutButton = document.getElementById('logoutButton');
 
     // Check for user_id in localStorage
     const userId = localStorage.getItem('user_id');
@@ -119,12 +117,6 @@
         document.querySelector('.card').appendChild(retryButton);
       }
     }
-
-    // Logout functionality
-    logoutButton.addEventListener('click', () => {
-      localStorage.removeItem('user_id');
-      window.location.href = 'login.html';
-    });
   </script>
 </body>
 
