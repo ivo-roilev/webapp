@@ -51,4 +51,4 @@
 - [x] 6.2 Verify src/web/ contains only 5 files (login.html, create-user.html, user-info.html, style.css, index.html redirect)
 - [x] 6.3 Document browser requirements (Chrome 90+, Safari 14+, Firefox 88+) in README
 - [x] 6.4 Document local development setup and API configuration
-- [ ] 6.5 Commit implementation and create change summary
+- [x] 6.5 Commit implementation and create change summary
