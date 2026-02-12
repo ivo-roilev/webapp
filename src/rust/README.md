@@ -19,7 +19,8 @@ The service uses async/await with Tokio runtime, connection pooling with SQLx, a
 - **Serialization**: Serde + serde_json for JSON handling
 - **Database Pooling**: SQLx built-in connection pool (min: 1, max: 10 connections)
 - **Error Handling**: Custom error types with thiserror
-- **Logging**: env_logger with configurable levels
+- **Logging**: Dual-output system (local stdout via env_logger + remote HTTP via reqwest)
+- **HTTP Client**: reqwest 0.11 with rustls-tls backend (connection pooling enabled)
 - **Dates**: Chrono for timestamp handling
 
 ## API Specification
@@ -216,6 +217,7 @@ SERVER_PORT=8080                 # Port (default: 8080)
 
 # Logging
 RUST_LOG=info                    # Log level (debug, info, warn, error)
+LOGGER_URL=http://localhost:9090  # Remote logger service URL (optional)
 ```
 
 ## Database Schema
@@ -462,11 +464,15 @@ curl -X POST http://localhost:8080/api/users \
 - **Optional fields**: Max 255 characters each
 - All queries use parameterized statements to prevent SQL injection
 
-### Logging
+### Dual Logging System
 
+- **Local stdout**: Via env_logger (configured with `RUST_LOG`)
+- **Remote HTTP**: Non-blocking async delivery to logger service (configured with `LOGGER_URL`)
 - Request logging via actix middleware
 - Error logging without exposing sensitive data
-- Configurable via `RUST_LOG` environment variable
+- User context included in all log events
+- System operations logged with "SYSTEM" identifier
+- Graceful degradation if logger service unavailable
 
 ### Error Handling
 
@@ -474,6 +480,99 @@ curl -X POST http://localhost:8080/api/users \
 - Duplicate username constraint violation caught and mapped to 409 Conflict
 - Connection failures return 503 Service Unavailable
 - All errors include descriptive messages
+
+---
+
+## Dual Logging Architecture
+
+The service implements a dual-output logging system that simultaneously writes to:
+1. **Local stdout** - For development debugging and local monitoring
+2. **Remote logger service** - For centralized log aggregation (optional)
+
+### Logger Service Integration
+
+**Configuration:**
+```bash
+# Optional - service works without logger
+LOGGER_URL=http://localhost:9090
+```
+
+**Features:**
+- Non-blocking async delivery (fire-and-forget with tokio::spawn)
+- Connection pooling via shared reqwest::Client
+- Structured JSON payloads with timestamp, level, app, user, message
+- Graceful degradation (service continues if logger unavailable)
+- No impact on request latency or user response times
+
+### Log Macro API
+
+The service provides four logging macros for different severity levels:
+
+```rust
+// Info level - general informational events
+log_info!(&http_client, "create_user", username, "Creating new user");
+
+// Error level - error conditions
+log_error!(&http_client, "login", username, "Database error: {}", err);
+
+// Warning level - warning conditions
+log_warn!(&http_client, "get_user_info", user_id, "User {} not found", user_id);
+
+// Debug level - detailed diagnostic information
+log_debug!(&http_client, "create_user", username, "Validating user data");
+```
+
+**Macro Parameters:**
+1. `&http_client` - Reference to Arc<reqwest::Client> from AppState
+2. `"app"` - Function/operation name for log filtering
+3. `user` - User identifier (username, user_id, or "SYSTEM")
+4. `"message"` - Format string for log message
+5. `args...` - Optional format arguments
+
+### Log Format
+
+**Local stdout:**
+```
+[2026-02-12T10:30:00Z] [INFO] [create_user] [alice] Creating new user
+[2026-02-12T10:30:05Z] [ERROR] [login] [bob] Invalid password
+[2026-02-12T10:30:10Z] [INFO] [main] [SYSTEM] Starting HTTP server on 127.0.0.1:8080
+```
+
+**Remote HTTP payload:**
+```json
+{
+  "timestamp": "2026-02-12T10:30:00Z",
+  "level": "info",
+  "app": "create_user",
+  "user": "alice",
+  "message": "Creating new user"
+}
+```
+
+### User Context in Logs
+
+- **User operations**: Username preferred over user_id when available
+- **System operations**: "SYSTEM" identifier for startup, shutdown, server events
+- **Anonymous operations**: Empty string converts to no user field
+
+**Example log calls:**
+```rust
+// With username
+log_info!(&state.http_client, "create_user", payload.username, "User created with ID: {}", user_id);
+
+// With user_id when username not available
+log_info!(&state.http_client, "get_user_info", user_id.to_string(), "Fetching user info");
+
+// System operation
+log_info!(&http_client, "main", "SYSTEM", "Starting HTTP server on {}:{}", host, port);
+```
+
+### Performance Characteristics
+
+- **Non-blocking**: HTTP logging runs in spawned tasks, never blocks handlers
+- **Connection reuse**: Single Arc<Client> shared across all requests
+- **Fire-and-forget**: Logging failures don't propagate to user requests
+- **Minimal overhead**: Async spawning adds ~microseconds, not milliseconds
 
 ---
 
@@ -541,7 +640,9 @@ src/
 └── rust/
     ├── README.md      # This file
     ├── main.rs        # HTTP server and handlers
-    └── db.rs          # Database connection and queries
+    ├── db.rs          # Database connection and queries
+    ├── logger.rs      # Dual-logging module with macro API
+    └── user_info_formatter.rs  # User info text formatting
 ```
 
 ---
@@ -552,13 +653,14 @@ src/
 - `serde`/`serde_json` 1: JSON serialization
 - `tokio` 1: Async runtime
 - `sqlx` 0.7: Type-safe async database driver
+- `reqwest` 0.11: HTTP client with rustls-tls backend (for logger integration)
 - `chrono` 0.4: DateTime handling
-- `log`/`env_logger`: Logging
+- `log`/`env_logger`: Logging infrastructure
 - `thiserror` 1: Error handling
 - `dotenv` 0.15: Environment configuration
 
 ---
 
 **API Version**: 1.0
-**Last Updated**: February 10, 2026
+**Last Updated**: February 12, 2026
 **Author**: GitHub Copilot
