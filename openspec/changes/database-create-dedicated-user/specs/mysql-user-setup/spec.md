@@ -37,7 +37,7 @@ The `webapp_user` SHALL have host pattern `%` to allow connections from any host
 - **WHEN** application running on a different host connects to MySQL
 - **THEN** connection is accepted with `webapp_user` credentials
 
-#### Scenario: User cannot access other databases  
+#### Scenario: User cannot access other databases
 - **WHEN** application attempts to query tables in a different database (e.g., `mysql.user`)
 - **THEN** MySQL rejects the query with access denied error
 

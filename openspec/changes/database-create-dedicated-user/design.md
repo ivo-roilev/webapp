@@ -81,6 +81,38 @@ The application's actual needs are limited to:
 - `'webapp_user'@'localhost'` (local host only)
 - Rejected: Unnecessarily restrictive
 
+### Decision 5: Testing Approach (Positive vs Negative Tests)
+
+**Choice:** Split test suite into SQL file for positive tests and shell script for negative tests
+
+**Rationale:**
+- SQL scripts fail on first error, cannot assert on expected failures
+- Negative tests (privilege denials, access violations) need to verify errors occur correctly
+- Shell scripts can check exit codes and grep error messages
+- Pattern similar to MySQL's MTR framework but without the heavy Perl/directory structure overhead
+- Clear separation: `04_test_suite.sql` for "things that should work", `05_security_tests.sh` for "things that should fail"
+
+**Implementation:**
+- Keep `04_test_suite.sql` for positive tests (CRUD operations, schema verification, constraints)
+- Create `05_security_tests.sh` for negative security tests:
+  - Privilege boundary verification (tasks 4.5-4.7)
+  - Duplicate username constraint testing (migrate Test 1.2 from SQL)
+  - Access denial assertions using exit codes and grep
+- Shell script exits non-zero on test failure for CI integration
+
+**Alternative Considered:**
+- MySQL Test Runner (MTR) framework
+- Rejected: Heavy setup (Perl, specific directory structure), overkill outside MySQL core development
+- Python test script
+- Rejected: Additional dependency, more setup than needed for 3-4 security tests
+- SQL stored procedures with error handlers
+- Rejected: Verbose, awkward syntax, harder to maintain
+
+**Trade-offs:**
+- Adds shell scripting to codebase (but simple, standard patterns)
+- Tests split across two files (but clear conceptual separation)
+- Benefits: Proper negative test assertions, CI-ready, no external dependencies
+
 ## Risks / Trade-offs
 
 **Risk:** Developers forget to run updated schema file and still have root user in `.env`
