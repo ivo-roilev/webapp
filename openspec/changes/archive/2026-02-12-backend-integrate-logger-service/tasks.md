@@ -72,16 +72,16 @@
 ## 10. Testing
 
 - [x] 10.1 Run `cargo test` to verify compilation and all 23 tests pass
-- [ ] 10.2 Start logger service (Go service) on localhost:9090
-- [ ] 10.3 Set `LOGGER_URL=http://localhost:9090` in `.env`
-- [ ] 10.4 Start webapp with `cargo run`
-- [ ] 10.5 Verify startup log appears in both stdout AND logger service file with user="SYSTEM"
-- [ ] 10.6 Test POST /api/users (create user) - verify logs in both destinations with username field
-- [ ] 10.7 Test POST /api/login - verify logs in both destinations with username field
-- [ ] 10.8 Test GET /api/users/{id} - verify logs in both destinations (username when user found, user_id otherwise)
-- [ ] 10.9 Test with invalid credentials - verify error logs in both destinations
-- [ ] 10.10 Stop logger service, restart webapp, verify local logs still work (graceful degradation)
-- [ ] 10.11 Unset `LOGGER_URL`, restart webapp, verify only local logs (no HTTP attempts)
-- [ ] 10.12 Check logger service log files for correct timestamp, level, app, user, message fields
-- [ ] 10.13 Verify messages don't redundantly repeat user information (username/user_id captured in user field)
-- [ ] 10.14 Verify system-level operations (startup, database init errors) use user="SYSTEM"
+- [x] 10.2 Start logger service (Go service) on localhost:9090
+- [x] 10.3 Set `LOGGER_URL=http://localhost:9090` in `.env`
+- [x] 10.4 Start webapp with `cargo run`
+- [x] 10.5 Verify startup log appears in both stdout AND logger service file with user="SYSTEM"
+- [x] 10.6 Test POST /api/users (create user) - verify logs in both destinations with username field
+- [x] 10.7 Test POST /api/login - verify logs in both destinations with username field
+- [x] 10.8 Test GET /api/users/{id} - verify logs in both destinations (username when user found, user_id otherwise)
+- [x] 10.9 Test with invalid credentials - verify error logs in both destinations
+- [x] 10.10 Stop logger service, restart webapp, verify local logs still work (graceful degradation)
+- [x] 10.11 Unset `LOGGER_URL`, restart webapp, verify only local logs (no HTTP attempts)
+- [x] 10.12 Check logger service log files for correct timestamp, level, app, user, message fields
+- [x] 10.13 Verify messages don't redundantly repeat user information (username/user_id captured in user field)
+- [x] 10.14 Verify system-level operations (startup, database init errors) use user="SYSTEM"
