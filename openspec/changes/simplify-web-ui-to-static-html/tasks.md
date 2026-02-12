@@ -37,18 +37,18 @@
 
 ## 5. Test Complete Flows
 
-- [ ] 5.1 Test login flow with valid/invalid credentials and error handling
-- [ ] 5.2 Test user creation flow with all fields and required-only fields
-- [ ] 5.3 Test user-info display and auto-redirect when no session
-- [ ] 5.4 Test theme toggle persistence across page reloads on all pages
-- [ ] 5.5 Test responsive design on mobile (320px), tablet (768px), desktop (1200px+)
-- [ ] 5.6 Test on Chrome 90+, Safari 14+, Firefox 88+
-- [ ] 5.7 Verify no console errors and API calls complete successfully
+- [x] 5.1 Test login flow with valid/invalid credentials and error handling
+- [x] 5.2 Test user creation flow with all fields and required-only fields
+- [x] 5.3 Test user-info display and auto-redirect when no session
+- [x] 5.4 Test theme toggle persistence across page reloads on all pages
+- [x] 5.5 Test responsive design on mobile (320px), tablet (768px), desktop (1200px+)
+- [x] 5.6 Test on Chrome 90+, Safari 14+, Firefox 88+
+- [x] 5.7 Verify no console errors and API calls complete successfully
 
 ## 6. Cleanup and Documentation
 
-- [ ] 6.1 Remove React/TypeScript files (src/web/src/, package.json, tsconfig*, vite.config.ts, node_modules/)
-- [ ] 6.2 Verify src/web/ contains only 5 files (login.html, create-user.html, user-info.html, style.css, index.html redirect)
-- [ ] 6.3 Document browser requirements (Chrome 90+, Safari 14+, Firefox 88+) in README
-- [ ] 6.4 Document local development setup and API configuration
+- [x] 6.1 Remove React/TypeScript files (previous content of the `src/web/src/`, package.json, tsconfig*, vite.config.ts, node_modules/. Leave the newly-generated files login.html, create-user.html, user-info.html, style.css, index.html)
+- [x] 6.2 Verify src/web/ contains only 5 files (login.html, create-user.html, user-info.html, style.css, index.html redirect)
+- [x] 6.3 Document browser requirements (Chrome 90+, Safari 14+, Firefox 88+) in README
+- [x] 6.4 Document local development setup and API configuration
 - [ ] 6.5 Commit implementation and create change summary
