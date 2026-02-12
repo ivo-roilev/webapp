@@ -6,7 +6,6 @@ use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use actix_cors::Cors;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use log::info;
 
 // Re-export database types
 use db::{Database, CreateUserRequest, User, DatabaseError};
@@ -90,7 +89,7 @@ async fn create_user(
     state: web::Data<AppState>,
     payload: web::Json<CreateUserPayload>,
 ) -> impl Responder {
-    log_info!(&state.http_client, "create_user", "Creating new user: {}", payload.username, user = payload.username);
+    log_info!(&state.http_client, "create_user", "Creating new user: {}", payload.username);
 
     // Validate required fields
     if payload.username.is_empty() || payload.username.len() > 16 {
@@ -165,11 +164,11 @@ async fn create_user(
 
     match state.db.create_user(&create_request).await {
         Ok(user_id) => {
-            log_info!(&state.http_client, "create_user", "User created successfully with ID: {}", user_id, user = payload.username);
+            log_info!(&state.http_client, "create_user", "User created successfully with ID: {} for user: {}", user_id, payload.username);
             HttpResponse::Created().json(CreateUserResponse { user_id })
         }
         Err(DatabaseError::DuplicateUsername) => {
-            log_info!(&state.http_client, "create_user", "Username {} already exists", payload.username, user = payload.username);
+            log_info!(&state.http_client, "create_user", "Username {} already exists", payload.username);
             HttpResponse::Conflict().json(ErrorResponse {
                 error: "DUPLICATE_USERNAME".to_string(),
                 message: format!("Username '{}' already exists", payload.username),
@@ -183,7 +182,7 @@ async fn create_user(
             })
         }
         Err(e) => {
-            log_error!(&state.http_client, "create_user", "Error creating user: {:?}", e, user = payload.username);
+            log_error!(&state.http_client, "create_user", "Error creating user {}: {:?}", payload.username, e);
             HttpResponse::InternalServerError().json(ErrorResponse {
                 error: "INTERNAL_ERROR".to_string(),
                 message: "Failed to create user".to_string(),
@@ -197,7 +196,7 @@ async fn login(
     state: web::Data<AppState>,
     payload: web::Json<LoginPayload>,
 ) -> impl Responder {
-    log_info!(&state.http_client, "login_user", "Login attempt for user: {}", payload.username, user = payload.username);
+    log_info!(&state.http_client, "login_user", "Login attempt for user: {}", payload.username);
 
     // Validate required fields
     if payload.username.is_empty() {
@@ -218,10 +217,10 @@ async fn login(
         Ok(user) => {
             // Compare passwords (plain-text comparison as per design)
             if user.password == payload.password {
-                log_info!(&state.http_client, "login_user", "Successful login for user: {}", payload.username, user = payload.username);
+                log_info!(&state.http_client, "login_user", "Successful login for user: {}", payload.username);
                 HttpResponse::Ok().json(LoginResponse { user_id: user.id })
             } else {
-                log_info!(&state.http_client, "login_user", "Invalid password for user: {}", payload.username, user = payload.username);
+                log_info!(&state.http_client, "login_user", "Invalid password for user: {}", payload.username);
                 HttpResponse::Unauthorized().json(ErrorResponse {
                     error: "INVALID_CREDENTIALS".to_string(),
                     message: "Invalid username or password".to_string(),
@@ -229,7 +228,7 @@ async fn login(
             }
         }
         Err(DatabaseError::UserNotFound) => {
-            log_info!(&state.http_client, "login_user", "User not found during login: {}", payload.username, user = payload.username);
+            log_info!(&state.http_client, "login_user", "User not found during login: {}", payload.username);
             HttpResponse::Unauthorized().json(ErrorResponse {
                 error: "INVALID_CREDENTIALS".to_string(),
                 message: "Invalid username or password".to_string(),
@@ -243,7 +242,7 @@ async fn login(
             })
         }
         Err(e) => {
-            log_error!(&state.http_client, "login_user", "Error during login: {:?}", e, user = payload.username);
+            log_error!(&state.http_client, "login_user", "Error during login for {}: {:?}", payload.username, e);
             HttpResponse::InternalServerError().json(ErrorResponse {
                 error: "INTERNAL_ERROR".to_string(),
                 message: "Login failed".to_string(),
