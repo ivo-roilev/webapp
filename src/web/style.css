@@ -105,9 +105,13 @@ body {
 }
 
 .card h1 {
-  font-size: var(--font-size-xlarge);
-  margin-bottom: 10px;
-  color: var(--text-primary);
+  font-size: var(--font-size-large);
+  font-weight: 500;
+  margin-bottom: 30px;
+  color: var(--text-secondary);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .card h2 {
