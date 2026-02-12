@@ -16,9 +16,11 @@ log::error!("Error creating user: {:?}", e);
 
 **Target pattern:**
 ```rust
-log_info!(&client, "login_user", "Login attempt for user: {}", username, user = username);
-log_error!(&client, "create_user", "Error creating user: {:?}", e, user = username);
+log_info!(&client, "login_user", username, "Login attempt");
+log_error!(&client, "create_user", username, "Error creating user: {:?}", e);
 ```
+
+Note: User field is 4th positional parameter (after app, before message). When username is available, use it instead of user_id for better log readability.
 
 ## Goals / Non-Goals
 
@@ -102,10 +104,12 @@ log_error!(&client, "create_user", "Error creating user: {:?}", e, user = userna
 
 **Macro signature pattern:**
 ```rust
-log_info!(&client, "create_user", "User created: {}", user_id);  // No user field
-log_info!(&client, "login_user", "Login attempt", user = username);  // With user field
-log_info!(&client, "login_user", "Login for: {}", username, user = username);  // Both
+log_info!(&client, "create_user", "SYSTEM", "User created");  // System-level operation
+log_info!(&client, "login_user", username, "Login attempt");  // With username
+log_info!(&client, "get_user_info", user_id, "Fetching user info");  // With user_id when username unavailable
 ```
+
+Note: User parameter is always 4th position. Use `"SYSTEM"` for system-level operations (startup, shutdown, etc.), empty string `""` when no user context available but operation is not system-level. Prefer username over user_id when both are available.
 
 ### Decision 5: Function Name as `app` Field
 
@@ -135,13 +139,12 @@ log_info!(&client, "login_user", "Login for: {}", username, user = username);  /
 // Current
 info!("User created successfully with ID: {}", user_id);
 
-// New (simple)
-log_info!(&client, "create_user", "User created successfully with ID: {}", user_id, user = username);
+// New (implemented)
+log_info!(&client, "create_user", username, "User created successfully with ID: {}", user_id);
 
-// Future (structured - not doing now)
-log_info!(&client, "create_user", "User created successfully",
-           user = username,
-           fields = hashmap!{ "user_id" => json!(user_id) });
+// Future optimization (avoiding redundancy - IMPLEMENTED)
+log_info!(&client, "create_user", username, "User created successfully");
+// User info is captured in the user field, no need to repeat in message
 ```
 
 ### Decision 7: Optional Logger Service (Graceful Degradation)

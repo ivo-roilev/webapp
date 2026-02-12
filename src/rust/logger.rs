@@ -23,8 +23,8 @@ pub fn dual_log(
     client: &Arc<reqwest::Client>,
     level: LogLevel,
     app: &str,
-    message: String,
     user: Option<String>,
+    message: String,
 ) {
     // 1. Local logging with function name prefix
     let formatted = format!("[{}] {}", app, message);
@@ -60,184 +60,108 @@ pub fn dual_log(
 // Macros for ergonomic usage
 #[macro_export]
 macro_rules! log_info {
-    // Variant 1: Format string with single arg + user field (MUST COME FIRST for precedence)
-    ($client:expr, $app:expr, $fmt:literal, $arg:tt, user = $user:expr) => {{
-        let msg = format!($fmt, $arg);
-        $crate::logger::dual_log(
-            $client,
-            $crate::logger::LogLevel::Info,
-            $app,
-            msg,
-            Some($user.to_string()),
-        )
-    }};
-    // Variant 2: Simple message with user field
-    ($client:expr, $app:expr, $msg:expr, user = $user:expr) => {
-        $crate::logger::dual_log(
-            $client,
-            $crate::logger::LogLevel::Info,
-            $app,
-            $msg.to_string(),
-            Some($user.to_string()),
-        )
-    };
-    // Variant 3: Format string with args, no user field
-    ($client:expr, $app:expr, $fmt:expr, $($arg:tt)+) => {{
+    // Variant 1: Format string with args
+    ($client:expr, $app:expr, $user:expr, $fmt:expr, $($arg:tt)+) => {{
         let msg = format!($fmt, $($arg)+);
+        let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
             $client,
             $crate::logger::LogLevel::Info,
             $app,
+            user_opt,
             msg,
-            None,
         )
     }};
-    // Variant 4: Simple message without user field (MUST COME LAST)
-    ($client:expr, $app:expr, $msg:expr) => {
+    // Variant 2: Simple message
+    ($client:expr, $app:expr, $user:expr, $msg:expr) => {
+        let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
             $client,
             $crate::logger::LogLevel::Info,
             $app,
+            user_opt,
             $msg.to_string(),
-            None,
         )
     };
 }
 
 #[macro_export]
 macro_rules! log_error {
-    // Variant 1: Format string with single arg + user field (MUST COME FIRST for precedence)
-    ($client:expr, $app:expr, $fmt:literal, $arg:tt, user = $user:expr) => {{
-        let msg = format!($fmt, $arg);
-        $crate::logger::dual_log(
-            $client,
-            $crate::logger::LogLevel::Error,
-            $app,
-            msg,
-            Some($user.to_string()),
-        )
-    }};
-    // Variant 2: Simple message with user field
-    ($client:expr, $app:expr, $msg:expr, user = $user:expr) => {
-        $crate::logger::dual_log(
-            $client,
-            $crate::logger::LogLevel::Error,
-            $app,
-            $msg.to_string(),
-            Some($user.to_string()),
-        )
-    };
-    // Variant 3: Format string with args, no user field
-    ($client:expr, $app:expr, $fmt:expr, $($arg:tt)+) => {{
+    // Variant 1: Format string with args
+    ($client:expr, $app:expr, $user:expr, $fmt:expr, $($arg:tt)+) => {{
         let msg = format!($fmt, $($arg)+);
+        let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
             $client,
             $crate::logger::LogLevel::Error,
             $app,
+            user_opt,
             msg,
-            None,
         )
     }};
-    // Variant 4: Simple message without user field (MUST COME LAST)
-    ($client:expr, $app:expr, $msg:expr) => {
+    // Variant 2: Simple message
+    ($client:expr, $app:expr, $user:expr, $msg:expr) => {
+        let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
             $client,
             $crate::logger::LogLevel::Error,
             $app,
+            user_opt,
             $msg.to_string(),
-            None,
         )
     };
 }
 
 #[macro_export]
 macro_rules! log_warn {
-    // Variant 1: Format string with args + user field
-    ($client:expr, $app:expr, $fmt:expr, $($arg:expr),+, user = $user:expr) => {{
-        let msg = format!($fmt, $($arg),+);
-        $crate::logger::dual_log(
-            $client,
-            $crate::logger::LogLevel::Warn,
-            $app,
-            msg,
-            Some($user.to_string()),
-        )
-    }};
-    // Variant 2: Simple message with user field
-    ($client:expr, $app:expr, $msg:expr, user = $user:expr) => {
-        $crate::logger::dual_log(
-            $client,
-            $crate::logger::LogLevel::Warn,
-            $app,
-            $msg.to_string(),
-            Some($user.to_string()),
-        )
-    };
-    // Variant 3: Simple message without user field
-    ($client:expr, $app:expr, $msg:expr) => {
-        $crate::logger::dual_log(
-            $client,
-            $crate::logger::LogLevel::Warn,
-            $app,
-            $msg.to_string(),
-            None,
-        )
-    };
-    // Variant 4: Format string with args, no user field
-    ($client:expr, $app:expr, $fmt:expr, $($arg:tt)+) => {{
+    // Variant 1: Format string with args
+    ($client:expr, $app:expr, $user:expr, $fmt:expr, $($arg:tt)+) => {{
         let msg = format!($fmt, $($arg)+);
+        let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
             $client,
             $crate::logger::LogLevel::Warn,
             $app,
+            user_opt,
             msg,
-            None,
         )
     }};
+    // Variant 2: Simple message
+    ($client:expr, $app:expr, $user:expr, $msg:expr) => {
+        let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
+        $crate::logger::dual_log(
+            $client,
+            $crate::logger::LogLevel::Warn,
+            $app,
+            user_opt,
+            $msg.to_string(),
+        )
+    };
 }
 
 #[macro_export]
 macro_rules! log_debug {
-    // Variant 1: Format string with args + user field
-    ($client:expr, $app:expr, $fmt:expr, $($arg:expr),+, user = $user:expr) => {{
-        let msg = format!($fmt, $($arg),+);
-        $crate::logger::dual_log(
-            $client,
-            $crate::logger::LogLevel::Debug,
-            $app,
-            msg,
-            Some($user.to_string()),
-        )
-    }};
-    // Variant 2: Simple message with user field
-    ($client:expr, $app:expr, $msg:expr, user = $user:expr) => {
-        $crate::logger::dual_log(
-            $client,
-            $crate::logger::LogLevel::Debug,
-            $app,
-            $msg.to_string(),
-            Some($user.to_string()),
-        )
-    };
-    // Variant 3: Simple message without user field
-    ($client:expr, $app:expr, $msg:expr) => {
-        $crate::logger::dual_log(
-            $client,
-            $crate::logger::LogLevel::Debug,
-            $app,
-            $msg.to_string(),
-            None,
-        )
-    };
-    // Variant 4: Format string with args, no user field
-    ($client:expr, $app:expr, $fmt:expr, $($arg:tt)+) => {{
+    // Variant 1: Format string with args
+    ($client:expr, $app:expr, $user:expr, $fmt:expr, $($arg:tt)+) => {{
         let msg = format!($fmt, $($arg)+);
+        let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
             $client,
             $crate::logger::LogLevel::Debug,
             $app,
+            user_opt,
             msg,
-            None,
         )
     }};
+    // Variant 2: Simple message
+    ($client:expr, $app:expr, $user:expr, $msg:expr) => {
+        let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
+        $crate::logger::dual_log(
+            $client,
+            $crate::logger::LogLevel::Debug,
+            $app,
+            user_opt,
+            $msg.to_string(),
+        )
+    };
 }
