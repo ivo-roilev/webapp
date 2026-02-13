@@ -5,7 +5,6 @@ mod logger;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use actix_cors::Cors;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 // Re-export database types
 use db::{Database, CreateUserRequest, User, DatabaseError};
@@ -78,8 +77,8 @@ pub struct ErrorResponse {
 // ============ Application State ============
 
 struct AppState {
-    db: Arc<Database>,
-    http_client: Arc<reqwest::Client>,
+    db: Database,
+    http_client: reqwest::Client,
 }
 
 // ============ Endpoint Handlers ============
@@ -89,7 +88,7 @@ async fn create_user(
     state: web::Data<AppState>,
     payload: web::Json<CreateUserPayload>,
 ) -> impl Responder {
-    log_info!(&state.http_client, "create_user", payload.username, "Creating new user");
+    log_info!(state.http_client, "create_user", payload.username, "Creating new user");
 
     // Validate required fields
     if payload.username.is_empty() || payload.username.len() > 16 {
@@ -164,25 +163,25 @@ async fn create_user(
 
     match state.db.create_user(&create_request).await {
         Ok(user_id) => {
-            log_info!(&state.http_client, "create_user", payload.username, "User created successfully with ID: {}", user_id);
+            log_info!(state.http_client, "create_user", payload.username, "User created successfully with ID: {}", user_id);
             HttpResponse::Created().json(CreateUserResponse { user_id })
         }
         Err(DatabaseError::DuplicateUsername) => {
-            log_info!(&state.http_client, "create_user", payload.username, "Username already exists");
+            log_info!(state.http_client, "create_user", payload.username, "Username already exists");
             HttpResponse::Conflict().json(ErrorResponse {
                 error: "DUPLICATE_USERNAME".to_string(),
                 message: format!("Username '{}' already exists", payload.username),
             })
         }
         Err(DatabaseError::ConnectionError(_)) => {
-            log_error!(&state.http_client, "create_user", payload.username, "Database connection error");
+            log_error!(state.http_client, "create_user", payload.username, "Database connection error");
             HttpResponse::ServiceUnavailable().json(ErrorResponse {
                 error: "DATABASE_UNAVAILABLE".to_string(),
                 message: "Database connection failed".to_string(),
             })
         }
         Err(e) => {
-            log_error!(&state.http_client, "create_user", payload.username, "Error creating user: {:?}", e);
+            log_error!(state.http_client, "create_user", payload.username, "Error creating user: {:?}", e);
             HttpResponse::InternalServerError().json(ErrorResponse {
                 error: "INTERNAL_ERROR".to_string(),
                 message: "Failed to create user".to_string(),
@@ -196,7 +195,7 @@ async fn login(
     state: web::Data<AppState>,
     payload: web::Json<LoginPayload>,
 ) -> impl Responder {
-    log_info!(&state.http_client, "login_user", payload.username, "Login attempt");
+    log_info!(state.http_client, "login_user", payload.username, "Login attempt");
 
     // Validate required fields
     if payload.username.is_empty() {
@@ -217,10 +216,10 @@ async fn login(
         Ok(user) => {
             // Compare passwords (plain-text comparison as per design)
             if user.password == payload.password {
-                log_info!(&state.http_client, "login_user", payload.username, "Successful login");
+                log_info!(state.http_client, "login_user", payload.username, "Successful login");
                 HttpResponse::Ok().json(LoginResponse { user_id: user.id })
             } else {
-                log_info!(&state.http_client, "login_user", payload.username, "Invalid password");
+                log_info!(state.http_client, "login_user", payload.username, "Invalid password");
                 HttpResponse::Unauthorized().json(ErrorResponse {
                     error: "INVALID_CREDENTIALS".to_string(),
                     message: "Invalid username or password".to_string(),
@@ -228,21 +227,21 @@ async fn login(
             }
         }
         Err(DatabaseError::UserNotFound) => {
-            log_info!(&state.http_client, "login_user", payload.username, "User not found during login");
+            log_info!(state.http_client, "login_user", payload.username, "User not found during login");
             HttpResponse::Unauthorized().json(ErrorResponse {
                 error: "INVALID_CREDENTIALS".to_string(),
                 message: "Invalid username or password".to_string(),
             })
         }
         Err(DatabaseError::ConnectionError(_)) => {
-            log_error!(&state.http_client, "login_user", payload.username, "Database connection error");
+            log_error!(state.http_client, "login_user", payload.username, "Database connection error");
             HttpResponse::ServiceUnavailable().json(ErrorResponse {
                 error: "DATABASE_UNAVAILABLE".to_string(),
                 message: "Database connection failed".to_string(),
             })
         }
         Err(e) => {
-            log_error!(&state.http_client, "login_user", payload.username, "Error during login: {:?}", e);
+            log_error!(state.http_client, "login_user", payload.username, "Error during login: {:?}", e);
             HttpResponse::InternalServerError().json(ErrorResponse {
                 error: "INTERNAL_ERROR".to_string(),
                 message: "Login failed".to_string(),
@@ -261,31 +260,31 @@ async fn get_user_info(
     // Validate user_id format and parse
     match user_id_str.parse::<i32>() {
         Ok(user_id) if user_id > 0 => {
-            log_info!(&state.http_client, "get_user_info", user_id, "Fetching user info");
+            log_info!(state.http_client, "get_user_info", user_id, "Fetching user info");
 
             match state.db.find_user_by_id(user_id).await {
                 Ok(user) => {
                     let username = user.username.clone();
-                    log_info!(&state.http_client, "get_user_info", username, "User info retrieved for ID: {}", user_id);
+                    log_info!(state.http_client, "get_user_info", username, "User info retrieved for ID: {}", user_id);
                     let greeting = format_user_greeting(user);
                     HttpResponse::Ok()
                         .content_type("text/plain; charset=utf-8")
                         .body(greeting)
                 }
                 Err(DatabaseError::UserNotFound) => {
-                    log_info!(&state.http_client, "get_user_info", user_id, "User not found");
+                    log_info!(state.http_client, "get_user_info", user_id, "User not found");
                     HttpResponse::NotFound()
                         .content_type("text/plain; charset=utf-8")
                         .body(format!("User with ID {} not found", user_id))
                 }
                 Err(DatabaseError::ConnectionError(_)) => {
-                    log_error!(&state.http_client, "get_user_info", "", "Database connection error");
+                    log_error!(state.http_client, "get_user_info", "", "Database connection error");
                     HttpResponse::ServiceUnavailable()
                         .content_type("text/plain; charset=utf-8")
                         .body("Database connection failed")
                 }
                 Err(e) => {
-                    log_error!(&state.http_client, "get_user_info", user_id, "Error fetching user: {:?}", e);
+                    log_error!(state.http_client, "get_user_info", user_id, "Error fetching user: {:?}", e);
                     HttpResponse::InternalServerError()
                         .content_type("text/plain; charset=utf-8")
                         .body("Failed to fetch user")
@@ -294,14 +293,14 @@ async fn get_user_info(
         }
         Ok(_) => {
             // Negative or zero user_id
-            log_info!(&state.http_client, "get_user_info", user_id_str, "Invalid user_id (non-positive)");
+            log_info!(state.http_client, "get_user_info", user_id_str, "Invalid user_id (non-positive)");
             HttpResponse::BadRequest()
                 .content_type("text/plain; charset=utf-8")
                 .body("user_id must be a positive integer")
         }
         Err(_) => {
             // Non-numeric user_id
-            log_info!(&state.http_client, "get_user_info", user_id_str, "Invalid user_id format");
+            log_info!(state.http_client, "get_user_info", user_id_str, "Invalid user_id format");
             HttpResponse::BadRequest()
                 .content_type("text/plain; charset=utf-8")
                 .body("user_id must be a valid integer")
@@ -325,27 +324,27 @@ async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
 
     // Create HTTP client for dual logging
-    let http_client = Arc::new(reqwest::Client::new());
+    let http_client = reqwest::Client::new();
 
     // Initialize database connection pool
     let db = match Database::new().await {
-        Ok(db) => Arc::new(db),
+        Ok(db) => db,
         Err(e) => {
-            log_error!(&http_client, "main", "SYSTEM", "Failed to initialize database: {:?}", e);
+            log_error!(http_client, "main", "SYSTEM", "Failed to initialize database: {:?}", e);
             panic!("Cannot start server: database initialization failed");
         }
     };
 
     let state = web::Data::new(AppState {
         db,
-        http_client: http_client.clone(),
+        http_client,
     });
 
     let server_host = std::env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let server_port = std::env::var("SERVER_PORT").unwrap_or_else(|_| "8080".to_string());
     let bind_addr = format!("{}:{}", server_host, server_port);
 
-    log_info!(&http_client, "main", "SYSTEM", "Starting HTTP server on {}", bind_addr);
+    log_info!(state.http_client, "main", "SYSTEM", "Starting HTTP server on {}", bind_addr);
 
     HttpServer::new(move || {
         let cors = Cors::permissive();
