@@ -8,7 +8,7 @@ The dual logging system SHALL output log events to two destinations simultaneous
 
 #### Scenario: Log with logger service configured
 - **WHEN** `LOGGER_URL` environment variable is set to `http://localhost:9090`
-- **AND** application calls dual logging function (e.g., `log_info!(&client, "create_user", "message")`)
+- **AND** application calls dual logging function (e.g., `log_info!(client, "create_user", "message")`)
 - **THEN** log event SHALL appear in stdout with format `[function_name] message`
 - **AND** log event SHALL be sent via HTTP POST to `http://localhost:9090/logs` with JSON payload
 
@@ -36,13 +36,14 @@ The dual logging system SHALL use asynchronous fire-and-forget delivery for HTTP
 
 ### Requirement: Logging SHALL use shared HTTP client for connection pooling
 
-The dual logging system SHALL reuse a single `reqwest::Client` instance stored in application state to minimize TCP handshake overhead.
+The dual logging system SHALL reuse a single `reqwest::Client` instance stored in application state to minimize TCP handshake overhead. The client SHALL be passed by value, relying on `reqwest::Client`'s internal Arc-based cloning for efficient sharing.
 
 #### Scenario: HTTP client initialized at startup
 - **WHEN** application starts
-- **THEN** a single `Arc<reqwest::Client>` SHALL be created
+- **THEN** a single `reqwest::Client` SHALL be created
 - **AND** client SHALL be stored in `AppState` struct
-- **AND** client SHALL be passed to all dual logging function calls
+- **AND** client SHALL be passed by value to all dual logging function calls
+- **AND** cloning the client SHALL be lightweight (reference count increment only)
 
 #### Scenario: Multiple log calls reuse connection
 - **WHEN** multiple log events are sent to logger service
@@ -72,18 +73,18 @@ The JSON payload sent to logger service SHALL conform to the logger service API 
 The dual logging system SHALL provide macros for all standard log levels: `log_debug!`, `log_info!`, `log_warn!`, `log_error!`.
 
 #### Scenario: Info level logging
-- **WHEN** code calls `log_info!(&client, "login_user", "Login successful")`
+- **WHEN** code calls `log_info!(client, "login_user", "Login successful")`
 - **THEN** local stdout SHALL show `[INFO] [login_user] Login successful`
 - **AND** remote payload SHALL have `"level": "info"`
 
 #### Scenario: Error level logging
-- **WHEN** code calls `log_error!(&client, "create_user", "Database error: {}", err)`
+- **WHEN** code calls `log_error!(client, "create_user", "Database error: {}", err)`
 - **THEN** local stdout SHALL show `[ERROR] [create_user] Database error: ...`
 - **AND** remote payload SHALL have `"level": "error"`
 
 #### Scenario: Debug level logging
 - **WHEN** `RUST_LOG=debug` is set
-- **AND** code calls `log_debug!(&client, "get_user_info", "Fetching user ID: {}", id)`
+- **AND** code calls `log_debug!(client, "get_user_info", "Fetching user ID: {}", id)`
 - **THEN** local stdout SHALL show `[DEBUG] [get_user_info] Fetching user ID: ...`
 - **AND** remote payload SHALL have `"level": "debug"`
 
@@ -92,15 +93,15 @@ The dual logging system SHALL provide macros for all standard log levels: `log_d
 The dual logging macros SHALL accept format strings like standard Rust `format!()` and SHALL support optional `user = value` syntax.
 
 #### Scenario: Format string with arguments
-- **WHEN** macro is called as `log_info!(&client, "create_user", "User created with ID: {}", user_id)`
+- **WHEN** macro is called as `log_info!(client, "create_user", "User created with ID: {}", user_id)`
 - **THEN** message SHALL be formatted with user_id value interpolated
 
 #### Scenario: User parameter provided
-- **WHEN** macro is called as `log_info!(&client, "login_user", "Login attempt", user = username)`
+- **WHEN** macro is called as `log_info!(client, "login_user", "Login attempt", user = username)`
 - **THEN** HTTP payload SHALL include `"user": <username value>`
 
 #### Scenario: Format string and user parameter combined
-- **WHEN** macro is called as `log_info!(&client, "login_user", "Login for: {}", username, user = username)`
+- **WHEN** macro is called as `log_info!(client, "login_user", "Login for: {}", username, user = username)`
 - **THEN** message SHALL be formatted with username
 - **AND** HTTP payload SHALL include `"user": <username value>`
 
