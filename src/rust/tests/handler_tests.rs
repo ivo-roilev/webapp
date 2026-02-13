@@ -10,7 +10,6 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::db::Database;
 use crate::{create_user, get_user_info, login, AppState};
-use std::sync::Arc;
 
 // ============ Test Helpers ============
 
