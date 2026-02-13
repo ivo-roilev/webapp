@@ -5,6 +5,7 @@ mod logger;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use actix_cors::Cors;
 use serde::{Deserialize, Serialize};
+use crate::user_info_formatter::format_user_greeting;
 
 // Re-export database types
 use db::{Database, CreateUserRequest, User, DatabaseError, UserProfile, UserMetadata};
@@ -49,12 +50,10 @@ pub struct UserInfoResponse {
     pub title: Option<String>,
     pub hobby: Option<String>,
     pub metadata: Vec<UserMetadata>,
-    pub greeting: String,
 }
 
 impl From<User> for UserInfoResponse {
     fn from(user: User) -> Self {
-        let greeting = user_info_formatter::format_user_greeting(&user);
         let (first_name, last_name, email) = user.profile.as_ref().map(|p| (p.first_name.clone(), p.last_name.clone(), p.email.clone())).unwrap_or((None, None, None));
 
         let mut title = None;
@@ -77,7 +76,6 @@ impl From<User> for UserInfoResponse {
             title,
             hobby,
             metadata: user.metadata,
-            greeting,
         }
     }
 }
@@ -300,39 +298,37 @@ async fn get_user_info(
                 Ok(user) => {
                     let username = user.username.clone();
                     log_info!(state.http_client, "get_user_info", username, "User info retrieved for ID: {}", user_id);
-                    // Return JSON response as per API specification
-                    HttpResponse::Ok().json(UserInfoResponse::from(user))
+                    let greeting = format_user_greeting(&user);
+                    HttpResponse::Ok()
+                        .content_type("text/plain; charset=utf-8")
+                        .body(greeting)
                 }
                 Err(DatabaseError::UserNotFound) => {
                     log_info!(state.http_client, "get_user_info", user_id, "User not found");
-                    HttpResponse::NotFound().json(ErrorResponse {
-                        error: "USER_NOT_FOUND".to_string(),
-                        message: format!("User with ID {} not found", user_id),
-                    })
+                    HttpResponse::NotFound()
+                        .content_type("text/plain; charset=utf-8")
+                        .body(format!("User with ID {} not found", user_id))
                 }
                 Err(DatabaseError::ConnectionError(_)) => {
                     log_error!(state.http_client, "get_user_info", "", "Database connection error");
-                    HttpResponse::ServiceUnavailable().json(ErrorResponse {
-                        error: "DATABASE_UNAVAILABLE".to_string(),
-                        message: "Database connection failed".to_string(),
-                    })
+                    HttpResponse::ServiceUnavailable()
+                        .content_type("text/plain; charset=utf-8")
+                        .body("Database connection failed")
                 }
                 Err(e) => {
                     log_error!(state.http_client, "get_user_info", user_id, "Error fetching user: {:?}", e);
-                    HttpResponse::InternalServerError().json(ErrorResponse {
-                        error: "INTERNAL_ERROR".to_string(),
-                        message: "Failed to fetch user".to_string(),
-                    })
+                    HttpResponse::InternalServerError()
+                        .content_type("text/plain; charset=utf-8")
+                        .body("Failed to fetch user")
                 }
             }
         }
         Ok(_) => {
             // Negative or zero user_id
             log_info!(state.http_client, "get_user_info", user_id_str, "Invalid user_id (non-positive)");
-            HttpResponse::BadRequest().json(ErrorResponse {
-                error: "VALIDATION_ERROR".to_string(),
-                message: "user_id must be a positive integer".to_string(),
-            })
+            HttpResponse::BadRequest()
+                .content_type("text/plain; charset=utf-8")
+                .body("user_id must be a positive integer")
         }
         Err(_) => {
             // Non-numeric user_id

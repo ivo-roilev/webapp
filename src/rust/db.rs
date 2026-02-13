@@ -222,8 +222,8 @@ impl Database {
         // 1. Fetch core info and profile
         let user_row = sqlx::query(
             "SELECT u.id, u.username, u.password, u.created_at, u.updated_at,
-                    p.first_name AS prof_first_name, 
-                    p.last_name AS prof_last_name, 
+                    p.first_name AS prof_first_name,
+                    p.last_name AS prof_last_name,
                     p.email AS prof_email
              FROM users u
              LEFT JOIN user_profiles p ON u.id = p.user_id
