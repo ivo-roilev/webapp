@@ -89,9 +89,6 @@ fn test_user_response_serialization() {
                 value: Some("Reading".to_string()),
             }
         ],
-        greeting: "Hello Engineer Test User, welcome!".to_string(),
-        // created_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
-        // updated_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
     };
 
     let json = serde_json::to_string(&user_response);
@@ -186,9 +183,6 @@ fn test_user_info_response_fields() {
         title: Some("Manager".to_string()),
         hobby: Some("Gaming".to_string()),
         metadata: vec![],
-        greeting: "Hello Manager John Doe, welcome!".to_string(),
-        // created_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
-        // updated_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
     };
 
     // Verify all fields are accessible

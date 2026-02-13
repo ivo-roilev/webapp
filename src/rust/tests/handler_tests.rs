@@ -11,11 +11,18 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use crate::db::Database;
 use crate::{create_user, get_user_info, login, AppState};
 
+// Global mutex to serialize tests that use environment variables
+// This is necessary because std::env::set_var is not thread-safe and
+// our implementation relies on std::env::var("LOGGER_URL")
+static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 // ============ Test Helpers ============
 
 /// Create test database and mock logger server
 /// Create test database and mock logger server
-async fn setup_test_deps() -> (Database, MockServer) {
+async fn setup_test_deps() -> (Database, MockServer, std::sync::MutexGuard<'static, ()>) {
+    let guard = TEST_MUTEX.lock().unwrap();
+
     // Create test database
     let db = Database::new_test()
         .await
@@ -25,7 +32,7 @@ async fn setup_test_deps() -> (Database, MockServer) {
     let mock_logger = MockServer::start().await;
     std::env::set_var("LOGGER_URL", mock_logger.uri());
 
-    (db, mock_logger)
+    (db, mock_logger, guard)
 }
 
 /// Create test app with given database
@@ -95,7 +102,7 @@ fn assert_error_response(body: &Value, expected_error: &str) {
 
 #[actix_web::test]
 async fn test_create_user_success() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
 
     // Mock logger to accept requests
     Mock::given(method("POST"))
@@ -126,7 +133,7 @@ async fn test_create_user_success() {
 
 #[actix_web::test]
 async fn test_create_user_with_optional_fields() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     Mock::given(method("POST"))
@@ -157,7 +164,7 @@ async fn test_create_user_with_optional_fields() {
 
 #[actix_web::test]
 async fn test_create_user_username_too_long() {
-    let (db, _mock_logger) = setup_test_deps().await;
+    let (db, _mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     let req = test::TestRequest::post()
@@ -177,7 +184,7 @@ async fn test_create_user_username_too_long() {
 
 #[actix_web::test]
 async fn test_create_user_empty_username() {
-    let (db, _mock_logger) = setup_test_deps().await;
+    let (db, _mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     let req = test::TestRequest::post()
@@ -197,7 +204,7 @@ async fn test_create_user_empty_username() {
 
 #[actix_web::test]
 async fn test_create_user_password_too_long() {
-    let (db, _mock_logger) = setup_test_deps().await;
+    let (db, _mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     let long_password = "a".repeat(256);
@@ -218,7 +225,7 @@ async fn test_create_user_password_too_long() {
 
 #[actix_web::test]
 async fn test_create_user_empty_password() {
-    let (db, _mock_logger) = setup_test_deps().await;
+    let (db, _mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     let req = test::TestRequest::post()
@@ -238,7 +245,7 @@ async fn test_create_user_empty_password() {
 
 #[actix_web::test]
 async fn test_create_user_optional_field_too_long() {
-    let (db, _mock_logger) = setup_test_deps().await;
+    let (db, _mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     let long_email = "a".repeat(256) + "@example.com";
@@ -260,7 +267,7 @@ async fn test_create_user_optional_field_too_long() {
 
 #[actix_web::test]
 async fn test_create_user_duplicate_username() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db.clone())).await;
 
     Mock::given(method("POST"))
@@ -290,7 +297,7 @@ async fn test_create_user_duplicate_username() {
 
 #[actix_web::test]
 async fn test_create_user_logs_to_logger() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     // Mount mock with expectations
@@ -318,7 +325,7 @@ async fn test_create_user_logs_to_logger() {
 
 #[actix_web::test]
 async fn test_create_user_logger_failure_doesnt_break_creation() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     // Mock logger to return 500 error
@@ -351,7 +358,7 @@ async fn test_create_user_logger_failure_doesnt_break_creation() {
 
 #[actix_web::test]
 async fn test_login_success() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db.clone())).await;
 
     Mock::given(method("POST"))
@@ -379,7 +386,7 @@ async fn test_login_success() {
 
 #[actix_web::test]
 async fn test_login_incorrect_password() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db.clone())).await;
 
     Mock::given(method("POST"))
@@ -407,7 +414,7 @@ async fn test_login_incorrect_password() {
 
 #[actix_web::test]
 async fn test_login_nonexistent_user() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     Mock::given(method("POST"))
@@ -433,7 +440,7 @@ async fn test_login_nonexistent_user() {
 
 #[actix_web::test]
 async fn test_login_logs_attempt_and_success() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db.clone())).await;
 
     Mock::given(method("POST"))
@@ -463,7 +470,7 @@ async fn test_login_logs_attempt_and_success() {
 
 #[actix_web::test]
 async fn test_get_user_info_success() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db.clone())).await;
 
     Mock::given(method("POST"))
@@ -490,7 +497,7 @@ async fn test_get_user_info_success() {
 
 #[actix_web::test]
 async fn test_get_user_info_not_found() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     Mock::given(method("POST"))
@@ -513,7 +520,7 @@ async fn test_get_user_info_not_found() {
 
 #[actix_web::test]
 async fn test_get_user_info_invalid_id_format() {
-    let (db, _mock_logger) = setup_test_deps().await;
+    let (db, _mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     let req = test::TestRequest::get()
@@ -526,7 +533,7 @@ async fn test_get_user_info_invalid_id_format() {
 
 #[actix_web::test]
 async fn test_get_user_info_negative_id() {
-    let (db, _mock_logger) = setup_test_deps().await;
+    let (db, _mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     let req = test::TestRequest::get().uri("/api/users/-1").to_request();
@@ -537,7 +544,7 @@ async fn test_get_user_info_negative_id() {
 
 #[actix_web::test]
 async fn test_get_user_info_with_all_optional_fields() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db.clone())).await;
 
     Mock::given(method("POST"))
@@ -590,7 +597,7 @@ async fn test_get_user_info_with_all_optional_fields() {
 
 #[actix_web::test]
 async fn test_verify_log_payload_structure() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     Mock::given(method("POST"))
@@ -616,7 +623,7 @@ async fn test_verify_log_payload_structure() {
 
 #[actix_web::test]
 async fn test_logger_failure_simulation() {
-    let (db, mock_logger) = setup_test_deps().await;
+    let (db, mock_logger, _guard) = setup_test_deps().await;
     let app = test::init_service(create_test_app(db)).await;
 
     // Simulate various logger failures
