@@ -367,5 +367,6 @@ async fn main() -> std::io::Result<()> {
 mod tests {
     mod main_test;
     mod user_info_formatter_test;
+    mod handler_tests;
 }
 

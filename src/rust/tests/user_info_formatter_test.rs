@@ -48,6 +48,8 @@ fn test_format_user_greeting_all_fields() {
         email: Some("john@email.com".to_string()),
         title: Some("Software Engineer".to_string()),
         hobby: Some("hiking".to_string()),
+        created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
+        updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
     };
     let result = format_user_greeting(user);
     assert_eq!(
@@ -67,6 +69,8 @@ fn test_format_user_greeting_minimal() {
         email: None,
         title: None,
         hobby: None,
+        created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
+        updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
     };
     let result = format_user_greeting(user);
     assert_eq!(result, "Hello jdoe, welcome!");
@@ -83,6 +87,8 @@ fn test_format_user_greeting_no_hobby() {
         email: Some("john@email.com".to_string()),
         title: Some("Software Engineer".to_string()),
         hobby: None,
+        created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
+        updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
     };
     let result = format_user_greeting(user);
     assert_eq!(result, "Hello Software Engineer John Doe, welcome!");
@@ -99,6 +105,8 @@ fn test_format_user_greeting_no_title() {
         email: Some("john@email.com".to_string()),
         title: None,
         hobby: Some("hiking".to_string()),
+        created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
+        updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
     };
     let result = format_user_greeting(user);
     assert_eq!(
@@ -118,6 +126,8 @@ fn test_format_user_greeting_hobby_no_email() {
         email: None,
         title: Some("Software Engineer".to_string()),
         hobby: Some("hiking".to_string()),
+        created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
+        updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
     };
     let result = format_user_greeting(user);
     assert_eq!(

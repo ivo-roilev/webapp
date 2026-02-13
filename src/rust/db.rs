@@ -1,7 +1,30 @@
-use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
+#[cfg(not(test))]
+use sqlx::mysql::{MySqlPool as Pool, MySqlPoolOptions as PoolOptions};
+#[cfg(test)]
+use sqlx::sqlite::{SqlitePool as Pool, SqlitePoolOptions as PoolOptions};
+
 use sqlx::Row;
 use std::time::Duration;
-// use chrono::NaiveDateTime;
+use chrono::NaiveDateTime;
+
+// SQLite-compatible schema for testing
+// Note: Uses AUTOINCREMENT (SQLite) instead of AUTO_INCREMENT (MySQL)
+// and INTEGER PRIMARY KEY instead of INT AUTO_INCREMENT
+#[cfg(test)]
+const CREATE_USERS_TABLE_SQLITE: &str = "
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username VARCHAR(16) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    first_name VARCHAR(64),
+    last_name VARCHAR(64),
+    email VARCHAR(128),
+    title VARCHAR(64),
+    hobby VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+";
 
 #[derive(Debug, Clone)]
 pub struct User {
@@ -13,8 +36,8 @@ pub struct User {
     pub email: Option<String>,
     pub title: Option<String>,
     pub hobby: Option<String>,
-    // pub created_at: NaiveDateTime,
-    // pub updated_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Debug)]
@@ -56,8 +79,9 @@ impl From<sqlx::Error> for DatabaseError {
     }
 }
 
+#[derive(Clone)]
 pub struct Database {
-    pool: MySqlPool,
+    pool: Pool,
 }
 
 impl Database {
@@ -78,13 +102,33 @@ impl Database {
             })
             .map_err(|e: sqlx::Error| DatabaseError::ConnectionError(e.to_string()))?;
 
-        let pool: MySqlPool = MySqlPoolOptions::new()
+        let pool = PoolOptions::new()
             .max_connections(10)
             .min_connections(1)
             .acquire_timeout(Duration::from_secs(30))
             .connect(&database_url)
             .await
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
+
+        Ok(Database { pool })
+    }
+
+    /// Create a test database with in-memory SQLite
+    /// Used exclusively for integration tests - does not affect production
+    #[cfg(test)]
+    pub async fn new_test() -> Result<Self, DatabaseError> {
+        // Create in-memory SQLite database
+        let pool = PoolOptions::new()
+            .max_connections(5)
+            .connect("sqlite::memory:")
+            .await
+            .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
+
+        // Initialize schema
+        sqlx::query(CREATE_USERS_TABLE_SQLITE)
+            .execute(&pool)
+            .await
+            .map_err(|e| DatabaseError::QueryError(format!("Failed to create schema: {}", e)))?;
 
         Ok(Database { pool })
     }
@@ -105,7 +149,14 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
-        Ok(result.last_insert_id() as i32)
+        // MySQL and SQLite have different method names for last insert ID
+        #[cfg(not(test))]
+        let user_id = result.last_insert_id() as i64;
+
+        #[cfg(test)]
+        let user_id = result.last_insert_rowid();
+
+        Ok(user_id as i32)
     }
 
     /// Find user by username
@@ -124,7 +175,7 @@ impl Database {
     /// Find user by ID
     pub async fn find_user_by_id(&self, id: i32) -> Result<User, DatabaseError> {
         let user = sqlx::query_as::<_, User>(
-            "SELECT id, username, password, first_name, last_name, email, title, hobby
+            "SELECT id, username, password, first_name, last_name, email, title, hobby, created_at, updated_at
              FROM users WHERE id = ?"
         )
         .bind(id)
@@ -135,9 +186,10 @@ impl Database {
     }
 }
 
-// Implement sqlx::FromRow for User struct
-impl sqlx::FromRow<'_, sqlx::mysql::MySqlRow> for User {
-    fn from_row(row: &sqlx::mysql::MySqlRow) -> Result<Self, sqlx::Error> {
+// Implement sqlx::FromRow for User struct - works with both MySQL and SQLite
+#[cfg(not(test))]
+impl<'r> sqlx::FromRow<'r, sqlx::mysql::MySqlRow> for User {
+    fn from_row(row: &'r sqlx::mysql::MySqlRow) -> Result<Self, sqlx::Error> {
         Ok(User {
             id: row.try_get("id")?,
             username: row.try_get("username")?,
@@ -147,8 +199,26 @@ impl sqlx::FromRow<'_, sqlx::mysql::MySqlRow> for User {
             email: row.try_get("email")?,
             title: row.try_get("title")?,
             hobby: row.try_get("hobby")?,
-            // created_at: row.try_get("created_at")?,
-            // updated_at: row.try_get("updated_at")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
+}
+
+#[cfg(test)]
+impl<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> for User {
+    fn from_row(row: &'r sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(User {
+            id: row.try_get("id")?,
+            username: row.try_get("username")?,
+            password: row.try_get("password")?,
+            first_name: row.try_get("first_name")?,
+            last_name: row.try_get("last_name")?,
+            email: row.try_get("email")?,
+            title: row.try_get("title")?,
+            hobby: row.try_get("hobby")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
         })
     }
 }
