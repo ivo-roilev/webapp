@@ -1,8 +1,5 @@
-# user-creation Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change database. Update Purpose after archive.
-## Requirements
 ### Requirement: Create new user
 The system SHALL accept user creation requests containing username, password, and user information (first_name, last_name, email, title, hobby) and persist this data in the database across core, profile, and metadata tables using a transaction.
 
@@ -21,4 +18,3 @@ The system SHALL accept user creation requests containing username, password, an
 #### Scenario: Username length constraint
 - **WHEN** a user creation request contains a username longer than 16 characters
 - **THEN** the system rejects the request with a username length constraint error
-

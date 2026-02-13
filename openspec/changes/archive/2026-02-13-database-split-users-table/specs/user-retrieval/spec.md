@@ -1,8 +1,5 @@
-# user-retrieval Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change database. Update Purpose after archive.
-## Requirements
 ### Requirement: Retrieve user by username
 The system SHALL retrieve user information from the database based on a provided username by joining the `users`, `user_profiles`, and `user_metadata` tables.
 
@@ -17,4 +14,3 @@ The system SHALL retrieve user information from the database based on a provided
 #### Scenario: Empty or invalid username query
 - **WHEN** an empty or invalid username string is provided for retrieval
 - **THEN** the system rejects the request with a validation error
-

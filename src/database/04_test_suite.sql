@@ -10,25 +10,30 @@ USE webapp_db;
 -- Test 1.1: Create user with valid data
 -- Expected: User created successfully with all fields
 START TRANSACTION;
-INSERT INTO users (username, password, first_name, last_name, email, title, hobby)
-VALUES ('testuser1', 'password123', 'John', 'Doe', 'john@example.com', 'Manager', 'Reading');
+INSERT INTO users (username, password) VALUES ('testuser1', 'password123');
+SET @uid = LAST_INSERT_ID();
+INSERT INTO user_profiles (user_id, first_name, last_name, email)
+VALUES (@uid, 'John', 'Doe', 'john@example.com');
+INSERT INTO user_metadata (user_id, property, value)
+VALUES (@uid, 'title', 'Manager'), (@uid, 'hobby', 'Reading');
 
 -- Verify created user
 SELECT 'Test 1.1: Create user with valid data' AS test_name;
-SELECT id, username, password, first_name, last_name, email, title, hobby, created_at, updated_at
-FROM users WHERE username = 'testuser1';
+SELECT u.id, u.username, u.password, p.first_name, p.last_name, p.email, m1.value as title, m2.value as hobby
+FROM users u
+LEFT JOIN user_profiles p ON u.id = p.user_id
+LEFT JOIN user_metadata m1 ON u.id = m1.user_id AND m1.property = 'title'
+LEFT JOIN user_metadata m2 ON u.id = m2.user_id AND m2.property = 'hobby'
+WHERE u.username = 'testuser1';
 ROLLBACK;
 
 -- Test 1.2: Duplicate username rejection
 -- Expected: Second insert with same username fails due to UNIQUE constraint
 START TRANSACTION;
-INSERT INTO users (username, password, first_name, last_name, email, title, hobby)
-VALUES ('duplicateuser', 'pass1', 'Jane', 'Smith', 'jane@example.com', 'Developer', 'Gaming');
-
--- Try to insert duplicate - should fail
+INSERT INTO users (username, password) VALUES ('duplicateuser', 'pass1');
+-- This should fail
 SELECT 'Test 1.2: Duplicate username rejection' AS test_name;
-INSERT INTO users (username, password, first_name, last_name, email, title, hobby)
-VALUES ('duplicateuser', 'pass2', 'Bob', 'Johnson', 'bob@example.com', 'Tester', 'Sports');
+INSERT INTO users (username, password) VALUES ('duplicateuser', 'pass2');
 -- Expected: Error - Duplicate entry 'duplicateuser' for key 'users.username' or 'users.idx_username'
 
 ROLLBACK;
@@ -107,11 +112,13 @@ ROLLBACK;
 -- Test 4.1: Verify all columns are properly created
 SELECT 'Test 4.1: Verify table schema' AS test_name;
 DESCRIBE users;
+DESCRIBE user_profiles;
+DESCRIBE user_metadata;
 
 -- Test 4.2: Verify timestamp columns work
 START TRANSACTION;
-INSERT INTO users (username, password, first_name, last_name, email, title, hobby)
-VALUES ('timestamp_test', 'pass123', 'Time', 'Keeper', 'time@example.com', 'Admin', 'Clocks');
+INSERT INTO users (username, password)
+VALUES ('timestamp_test', 'pass123');
 
 SELECT 'Test 4.2: Verify timestamp columns' AS test_name;
 SELECT username, created_at, updated_at FROM users WHERE username = 'timestamp_test';

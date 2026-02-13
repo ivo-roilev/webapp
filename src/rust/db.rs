@@ -1,31 +1,75 @@
-use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
+#[cfg(not(test))]
+use sqlx::mysql::{MySqlPool as Pool, MySqlPoolOptions as PoolOptions};
+#[cfg(test)]
+use sqlx::sqlite::{SqlitePool as Pool, SqlitePoolOptions as PoolOptions};
+
 use sqlx::Row;
 use std::time::Duration;
-// use chrono::NaiveDateTime;
+use chrono::NaiveDateTime;
+use serde::{Serialize, Deserialize};
+
+// SQLite-compatible schema for testing
+// Note: Uses AUTOINCREMENT (SQLite) instead of AUTO_INCREMENT (MySQL)
+// and INTEGER PRIMARY KEY instead of INT AUTO_INCREMENT
+#[cfg(test)]
+const CREATE_SCHEMA_SQLITE: &str = "
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username VARCHAR(16) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+    user_id INTEGER PRIMARY KEY,
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    email VARCHAR(255),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_metadata (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    parent_property VARCHAR(255),
+    property VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserProfile {
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub email: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserMetadata {
+    pub parent_property: Option<String>,
+    pub property: String,
+    pub value: Option<String>,
+}
 
 #[derive(Debug, Clone)]
 pub struct User {
     pub id: i32,
     pub username: String,
     pub password: String,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-    pub email: Option<String>,
-    pub title: Option<String>,
-    pub hobby: Option<String>,
-    // pub created_at: NaiveDateTime,
-    // pub updated_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub profile: Option<UserProfile>,
+    pub metadata: Vec<UserMetadata>,
 }
 
 #[derive(Debug)]
 pub struct CreateUserRequest {
     pub username: String,
     pub password: String,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-    pub email: Option<String>,
-    pub title: Option<String>,
-    pub hobby: Option<String>,
+    pub profile: Option<UserProfile>,
+    pub metadata: Vec<UserMetadata>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -56,8 +100,9 @@ impl From<sqlx::Error> for DatabaseError {
     }
 }
 
+#[derive(Clone)]
 pub struct Database {
-    pool: MySqlPool,
+    pool: Pool,
 }
 
 impl Database {
@@ -78,7 +123,7 @@ impl Database {
             })
             .map_err(|e: sqlx::Error| DatabaseError::ConnectionError(e.to_string()))?;
 
-        let pool: MySqlPool = MySqlPoolOptions::new()
+        let pool = PoolOptions::new()
             .max_connections(10)
             .min_connections(1)
             .acquire_timeout(Duration::from_secs(30))
@@ -89,66 +134,142 @@ impl Database {
         Ok(Database { pool })
     }
 
-    /// Create a new user record in the database
+    /// Create a test database with in-memory SQLite
+    /// Used exclusively for integration tests - does not affect production
+    #[cfg(test)]
+    pub async fn new_test() -> Result<Self, DatabaseError> {
+        // Create in-memory SQLite database
+        let pool = PoolOptions::new()
+            .max_connections(5)
+            .connect("sqlite::memory:")
+            .await
+            .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
+
+        // Initialize schema (running multiple statements in one query is supported by sqlx for sqlite)
+        sqlx::query(CREATE_SCHEMA_SQLITE)
+            .execute(&pool)
+            .await
+            .map_err(|e| DatabaseError::QueryError(format!("Failed to create schema: {}", e)))?;
+
+        Ok(Database { pool })
+    }
+
+    /// Create a new user record in the database using multiple tables and transactions
     pub async fn create_user(&self, user: &CreateUserRequest) -> Result<i32, DatabaseError> {
+        let mut tx = self.pool.begin().await.map_err(|e| DatabaseError::QueryError(e.to_string()))?;
+
+        // 1. Insert into core 'users' table
         let result = sqlx::query(
-            "INSERT INTO users (username, password, first_name, last_name, email, title, hobby)
-             VALUES (?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO users (username, password) VALUES (?, ?)"
         )
         .bind(&user.username)
         .bind(&user.password)
-        .bind(&user.first_name)
-        .bind(&user.last_name)
-        .bind(&user.email)
-        .bind(&user.title)
-        .bind(&user.hobby)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
 
-        Ok(result.last_insert_id() as i32)
+        // Get the new user ID
+        #[cfg(not(test))]
+        let user_id = result.last_insert_id() as i64;
+        #[cfg(test)]
+        let user_id = result.last_insert_rowid();
+        let user_id = user_id as i32;
+
+        // 2. Insert into 'user_profiles' if profile data exists
+        if let Some(ref profile) = user.profile {
+            sqlx::query(
+                "INSERT INTO user_profiles (user_id, first_name, last_name, email) VALUES (?, ?, ?, ?)"
+            )
+            .bind(user_id)
+            .bind(&profile.first_name)
+            .bind(&profile.last_name)
+            .bind(&profile.email)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        // 3. Insert into 'user_metadata' for hobbies, titles, and extra metadata
+        for meta in &user.metadata {
+            sqlx::query(
+                "INSERT INTO user_metadata (user_id, parent_property, property, value) VALUES (?, ?, ?, ?)"
+            )
+            .bind(user_id)
+            .bind(&meta.parent_property)
+            .bind(&meta.property)
+            .bind(&meta.value)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await.map_err(|e| DatabaseError::QueryError(e.to_string()))?;
+
+        Ok(user_id)
     }
 
-    /// Find user by username
-    pub async fn find_user_by_username(&self, username: &str) -> Result<User, DatabaseError> {
-        let user = sqlx::query_as::<_, User>(
-            "SELECT id, username, password, first_name, last_name, email, title, hobby, created_at, updated_at
-             FROM users WHERE username = ?"
+    /// Find user by username (optimized for authentication)
+    pub async fn authenticate_user(&self, username: &str) -> Result<(i32, String), DatabaseError> {
+        let row: (i32, String) = sqlx::query_as(
+            "SELECT id, password FROM users WHERE username = ?"
         )
         .bind(username)
         .fetch_one(&self.pool)
         .await?;
 
-        Ok(user)
+        Ok(row)
     }
 
-    /// Find user by ID
+    /// Find user by ID (aggregates profile and metadata)
     pub async fn find_user_by_id(&self, id: i32) -> Result<User, DatabaseError> {
-        let user = sqlx::query_as::<_, User>(
-            "SELECT id, username, password, first_name, last_name, email, title, hobby
-             FROM users WHERE id = ?"
+        // 1. Fetch core info and profile
+        let user_row = sqlx::query(
+            "SELECT u.id, u.username, u.password, u.created_at, u.updated_at,
+                    p.first_name AS prof_first_name,
+                    p.last_name AS prof_last_name,
+                    p.email AS prof_email
+             FROM users u
+             LEFT JOIN user_profiles p ON u.id = p.user_id
+             WHERE u.id = ?"
         )
         .bind(id)
         .fetch_one(&self.pool)
         .await?;
 
-        Ok(user)
-    }
-}
+        // 2. Fetch metadata
+        let metadata_rows = sqlx::query(
+            "SELECT parent_property, property, value FROM user_metadata WHERE user_id = ?"
+        )
+        .bind(id)
+        .fetch_all(&self.pool)
+        .await?;
 
-// Implement sqlx::FromRow for User struct
-impl sqlx::FromRow<'_, sqlx::mysql::MySqlRow> for User {
-    fn from_row(row: &sqlx::mysql::MySqlRow) -> Result<Self, sqlx::Error> {
+        let metadata = metadata_rows.into_iter().map(|row| {
+            UserMetadata {
+                parent_property: row.get(0),
+                property: row.get(1),
+                value: row.get(2),
+            }
+        }).collect();
+
+        // Map optional profile fields
+        let profile = if user_row.try_get::<String, _>("prof_first_name").is_ok() ||
+                         user_row.try_get::<String, _>("prof_last_name").is_ok() ||
+                         user_row.try_get::<String, _>("prof_email").is_ok() {
+            Some(UserProfile {
+                first_name: user_row.try_get("prof_first_name").ok(),
+                last_name: user_row.try_get("prof_last_name").ok(),
+                email: user_row.try_get("prof_email").ok(),
+            })
+        } else {
+            None
+        };
+
         Ok(User {
-            id: row.try_get("id")?,
-            username: row.try_get("username")?,
-            password: row.try_get("password")?,
-            first_name: row.try_get("first_name")?,
-            last_name: row.try_get("last_name")?,
-            email: row.try_get("email")?,
-            title: row.try_get("title")?,
-            hobby: row.try_get("hobby")?,
-            // created_at: row.try_get("created_at")?,
-            // updated_at: row.try_get("updated_at")?,
+            id: user_row.get("id"),
+            username: user_row.get("username"),
+            password: user_row.get("password"),
+            created_at: user_row.get("created_at"),
+            updated_at: user_row.get("updated_at"),
+            profile,
+            metadata,
         })
     }
 }

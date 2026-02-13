@@ -1,4 +1,4 @@
-use crate::db::User;
+use crate::db::{User, UserProfile, UserMetadata};
 use crate::user_info_formatter::{construct_name, format_user_greeting};
 
 #[test]
@@ -43,13 +43,27 @@ fn test_format_user_greeting_all_fields() {
         id: 1,
         username: "jdoe".to_string(),
         password: "pass".to_string(),
-        first_name: Some("John".to_string()),
-        last_name: Some("Doe".to_string()),
-        email: Some("john@email.com".to_string()),
-        title: Some("Software Engineer".to_string()),
-        hobby: Some("hiking".to_string()),
+        profile: Some(UserProfile {
+            first_name: Some("John".to_string()),
+            last_name: Some("Doe".to_string()),
+            email: Some("john@email.com".to_string()),
+        }),
+        metadata: vec![
+            UserMetadata {
+                parent_property: None,
+                property: "title".to_string(),
+                value: Some("Software Engineer".to_string()),
+            },
+            UserMetadata {
+                parent_property: None,
+                property: "hobby".to_string(),
+                value: Some("hiking".to_string()),
+            }
+        ],
+        created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
+        updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
     };
-    let result = format_user_greeting(user);
+    let result = format_user_greeting(&user);
     assert_eq!(
         result,
         "Hello Software Engineer John Doe, welcome! If we hear interesting news about hiking, we will let you know at john@email.com!"
@@ -62,13 +76,12 @@ fn test_format_user_greeting_minimal() {
         id: 1,
         username: "jdoe".to_string(),
         password: "pass".to_string(),
-        first_name: None,
-        last_name: None,
-        email: None,
-        title: None,
-        hobby: None,
+        profile: None,
+        metadata: vec![],
+        created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
+        updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
     };
-    let result = format_user_greeting(user);
+    let result = format_user_greeting(&user);
     assert_eq!(result, "Hello jdoe, welcome!");
 }
 
@@ -78,13 +91,22 @@ fn test_format_user_greeting_no_hobby() {
         id: 1,
         username: "jdoe".to_string(),
         password: "pass".to_string(),
-        first_name: Some("John".to_string()),
-        last_name: Some("Doe".to_string()),
-        email: Some("john@email.com".to_string()),
-        title: Some("Software Engineer".to_string()),
-        hobby: None,
+        profile: Some(UserProfile {
+            first_name: Some("John".to_string()),
+            last_name: Some("Doe".to_string()),
+            email: Some("john@email.com".to_string()),
+        }),
+        metadata: vec![
+            UserMetadata {
+                parent_property: None,
+                property: "title".to_string(),
+                value: Some("Software Engineer".to_string()),
+            }
+        ],
+        created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
+        updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
     };
-    let result = format_user_greeting(user);
+    let result = format_user_greeting(&user);
     assert_eq!(result, "Hello Software Engineer John Doe, welcome!");
 }
 
@@ -94,13 +116,22 @@ fn test_format_user_greeting_no_title() {
         id: 1,
         username: "jdoe".to_string(),
         password: "pass".to_string(),
-        first_name: Some("John".to_string()),
-        last_name: Some("Doe".to_string()),
-        email: Some("john@email.com".to_string()),
-        title: None,
-        hobby: Some("hiking".to_string()),
+        profile: Some(UserProfile {
+            first_name: Some("John".to_string()),
+            last_name: Some("Doe".to_string()),
+            email: Some("john@email.com".to_string()),
+        }),
+        metadata: vec![
+            UserMetadata {
+                parent_property: None,
+                property: "hobby".to_string(),
+                value: Some("hiking".to_string()),
+            }
+        ],
+        created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
+        updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
     };
-    let result = format_user_greeting(user);
+    let result = format_user_greeting(&user);
     assert_eq!(
         result,
         "Hello John Doe, welcome! If we hear interesting news about hiking, we will let you know at john@email.com!"
@@ -113,13 +144,27 @@ fn test_format_user_greeting_hobby_no_email() {
         id: 1,
         username: "jdoe".to_string(),
         password: "pass".to_string(),
-        first_name: Some("John".to_string()),
-        last_name: Some("Doe".to_string()),
-        email: None,
-        title: Some("Software Engineer".to_string()),
-        hobby: Some("hiking".to_string()),
+        profile: Some(UserProfile {
+            first_name: Some("John".to_string()),
+            last_name: Some("Doe".to_string()),
+            email: None,
+        }),
+        metadata: vec![
+            UserMetadata {
+                parent_property: None,
+                property: "title".to_string(),
+                value: Some("Software Engineer".to_string()),
+            },
+            UserMetadata {
+                parent_property: None,
+                property: "hobby".to_string(),
+                value: Some("hiking".to_string()),
+            }
+        ],
+        created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
+        updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap(),
     };
-    let result = format_user_greeting(user);
+    let result = format_user_greeting(&user);
     assert_eq!(
         result,
         "Hello Software Engineer John Doe, welcome! If we hear interesting news about hiking, we will let you know!"

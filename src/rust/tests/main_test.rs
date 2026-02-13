@@ -77,6 +77,19 @@ fn test_user_response_serialization() {
         email: Some("test@example.com".to_string()),
         title: Some("Engineer".to_string()),
         hobby: Some("Reading".to_string()),
+        metadata: vec![
+            UserMetadata {
+                parent_property: None,
+                property: "title".to_string(),
+                value: Some("Engineer".to_string()),
+            },
+            UserMetadata {
+                parent_property: None,
+                property: "hobby".to_string(),
+                value: Some("Reading".to_string()),
+            }
+        ],
+        greeting: "Hello Engineer Test User, welcome!".to_string(),
         // created_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
         // updated_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
     };
@@ -88,6 +101,7 @@ fn test_user_response_serialization() {
     assert_eq!(json_value["id"], 1);
     assert_eq!(json_value["username"], "testuser");
     assert_eq!(json_value["first_name"], "Test");
+    assert!(json_value["metadata"].is_array());
 }
 
 #[test]
@@ -171,6 +185,8 @@ fn test_user_info_response_fields() {
         email: Some("john@example.com".to_string()),
         title: Some("Manager".to_string()),
         hobby: Some("Gaming".to_string()),
+        metadata: vec![],
+        greeting: "Hello Manager John Doe, welcome!".to_string(),
         // created_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
         // updated_at: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
     };
