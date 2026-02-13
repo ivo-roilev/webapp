@@ -14,7 +14,7 @@ The service uses async/await with Tokio runtime, connection pooling with SQLx, a
 ## Technology Stack
 
 - **Framework**: Actix-web 4 (high-performance HTTP server)
-- **Database**: MySQL with SQLx (async, type-safe driver)
+- **Database**: MySQL (production) & SQLite (testing) via SQLx AnyPool
 - **Async Runtime**: Tokio 1 with full features
 - **Serialization**: Serde + serde_json for JSON handling
 - **Database Pooling**: SQLx built-in connection pool (min: 1, max: 10 connections)
