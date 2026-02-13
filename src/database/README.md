@@ -17,6 +17,15 @@ All database files are located in `src/database/`
 - `webapp_user` **cannot** access MySQL system tables or other databases
 - `webapp_user` **cannot** create other users or escalate privileges
 
+### Testing Strategy
+
+While production uses MySQL with the dedicated user, the automated test suite uses an **isolated in-memory SQLite database**.
+
+- **No MySQL required**: You can run `cargo test` without setting up MySQL or the `webapp_user`.
+- **Isolation**: Each test runs in its own private SQLite instance.
+- **Speed**: Tests complete in milliseconds without network overhead.
+- **Compatibility**: The application uses `sqlx::AnyPool` to support both database types transparently.
+
 ### Setup Instructions
 
 #### For New Developers
