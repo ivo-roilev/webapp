@@ -43,8 +43,8 @@ fn create_test_app(
 > {
     App::new()
         .app_data(web::Data::new(AppState {
-            db: Arc::new(db),
-            http_client: Arc::new(reqwest::Client::new()),
+            db: db,
+            http_client: reqwest::Client::new(),
         }))
         .route("/api/users", web::post().to(create_user))
         .route("/api/login", web::post().to(login))
@@ -53,15 +53,27 @@ fn create_test_app(
 
 /// Insert a test user directly into the database
 async fn create_test_user(db: &Database, username: &str, password: &str) -> i32 {
-    use crate::db::CreateUserRequest;
+    use crate::db::{CreateUserRequest, UserProfile, UserMetadata};
     db.create_user(&CreateUserRequest {
         username: username.to_string(),
         password: password.to_string(),
-        first_name: Some("Test".to_string()),
-        last_name: Some("User".to_string()),
-        email: Some("test@example.com".to_string()),
-        title: None,
-        hobby: None,
+        profile: Some(UserProfile {
+            first_name: Some("Test".to_string()),
+            last_name: Some("User".to_string()),
+            email: Some("test@example.com".to_string()),
+        }),
+        metadata: vec![
+            UserMetadata {
+                parent_property: None,
+                property: "title".to_string(),
+                value: Some("Engineer".to_string()),
+            },
+            UserMetadata {
+                parent_property: None,
+                property: "hobby".to_string(),
+                value: Some("Coding".to_string()),
+            },
+        ],
     })
     .await
     .expect("Failed to create test user")
@@ -535,16 +547,28 @@ async fn test_get_user_info_with_all_optional_fields() {
         .mount(&mock_logger)
         .await;
 
-    use crate::db::CreateUserRequest;
+    use crate::db::{CreateUserRequest, UserProfile, UserMetadata};
     let user_id = db
         .create_user(&CreateUserRequest {
             username: "fullinfo".to_string(),
             password: "password123".to_string(),
-            first_name: Some("John".to_string()),
-            last_name: Some("Doe".to_string()),
-            email: Some("john@example.com".to_string()),
-            title: Some("Engineer".to_string()),
-            hobby: Some("Coding".to_string()),
+            profile: Some(UserProfile {
+                first_name: Some("John".to_string()),
+                last_name: Some("Doe".to_string()),
+                email: Some("john@example.com".to_string()),
+            }),
+            metadata: vec![
+                UserMetadata {
+                    parent_property: None,
+                    property: "title".to_string(),
+                    value: Some("Engineer".to_string()),
+                },
+                UserMetadata {
+                    parent_property: None,
+                    property: "hobby".to_string(),
+                    value: Some("Coding".to_string()),
+                },
+            ],
         })
         .await
         .expect("Failed to create test user");
@@ -632,7 +656,7 @@ async fn test_database_isolation() {
 
     // Verify user doesn't exist in db2
     use crate::db::DatabaseError;
-    let result = db2.find_user_by_username("user1").await;
+    let result = db2.authenticate_user("user1").await;
     assert!(
         matches!(result, Err(DatabaseError::UserNotFound)),
         "Databases should be isolated"
@@ -654,11 +678,8 @@ async fn test_unique_constraint_works_in_sqlite() {
         .create_user(&CreateUserRequest {
             username: "unique_test".to_string(),
             password: "password456".to_string(),
-            first_name: None,
-            last_name: None,
-            email: None,
-            title: None,
-            hobby: None,
+            profile: None,
+            metadata: vec![],
         })
         .await;
 

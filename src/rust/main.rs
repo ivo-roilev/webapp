@@ -7,8 +7,7 @@ use actix_cors::Cors;
 use serde::{Deserialize, Serialize};
 
 // Re-export database types
-use db::{Database, CreateUserRequest, User, DatabaseError};
-use user_info_formatter::format_user_greeting;
+use db::{Database, CreateUserRequest, User, DatabaseError, UserProfile, UserMetadata};
 
 // ============ Request/Response Structs ============
 
@@ -21,6 +20,7 @@ pub struct CreateUserPayload {
     pub email: Option<String>,
     pub title: Option<String>,
     pub hobby: Option<String>,
+    pub extra_metadata: Option<Vec<UserMetadata>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -48,22 +48,36 @@ pub struct UserInfoResponse {
     pub email: Option<String>,
     pub title: Option<String>,
     pub hobby: Option<String>,
-//    pub created_at: chrono::NaiveDateTime,
-    // pub updated_at: chrono::NaiveDateTime,
+    pub metadata: Vec<UserMetadata>,
+    pub greeting: String,
 }
 
 impl From<User> for UserInfoResponse {
     fn from(user: User) -> Self {
+        let greeting = user_info_formatter::format_user_greeting(&user);
+        let (first_name, last_name, email) = user.profile.as_ref().map(|p| (p.first_name.clone(), p.last_name.clone(), p.email.clone())).unwrap_or((None, None, None));
+
+        let mut title = None;
+        let mut hobby = None;
+
+        for m in &user.metadata {
+            if m.property == "title" {
+                title = m.value.clone();
+            } else if m.property == "hobby" {
+                hobby = m.value.clone();
+            }
+        }
+
         UserInfoResponse {
             id: user.id,
             username: user.username,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            email: user.email,
-            title: user.title,
-            hobby: user.hobby,
-            // created_at: user.created_at,
-            // updated_at: user.updated_at,
+            first_name,
+            last_name,
+            email,
+            title,
+            hobby,
+            metadata: user.metadata,
+            greeting,
         }
     }
 }
@@ -151,14 +165,34 @@ async fn create_user(
         }
     }
 
+    let mut metadata = Vec::new();
+    if let Some(ref title) = payload.title {
+        metadata.push(UserMetadata {
+            parent_property: None,
+            property: "title".to_string(),
+            value: Some(title.clone()),
+        });
+    }
+    if let Some(ref hobby) = payload.hobby {
+        metadata.push(UserMetadata {
+            parent_property: None,
+            property: "hobby".to_string(),
+            value: Some(hobby.clone()),
+        });
+    }
+    if let Some(ref extra) = payload.extra_metadata {
+        metadata.extend(extra.clone());
+    }
+
     let create_request = CreateUserRequest {
         username: payload.username.clone(),
         password: payload.password.clone(),
-        first_name: payload.first_name.clone(),
-        last_name: payload.last_name.clone(),
-        email: payload.email.clone(),
-        title: payload.title.clone(),
-        hobby: payload.hobby.clone(),
+        profile: Some(UserProfile {
+            first_name: payload.first_name.clone(),
+            last_name: payload.last_name.clone(),
+            email: payload.email.clone(),
+        }),
+        metadata,
     };
 
     match state.db.create_user(&create_request).await {
@@ -212,12 +246,12 @@ async fn login(
         });
     }
 
-    match state.db.find_user_by_username(&payload.username).await {
-        Ok(user) => {
+    match state.db.authenticate_user(&payload.username).await {
+        Ok((user_id, stored_password)) => {
             // Compare passwords (plain-text comparison as per design)
-            if user.password == payload.password {
+            if stored_password == payload.password {
                 log_info!(state.http_client, "login_user", payload.username, "Successful login");
-                HttpResponse::Ok().json(LoginResponse { user_id: user.id })
+                HttpResponse::Ok().json(LoginResponse { user_id })
             } else {
                 log_info!(state.http_client, "login_user", payload.username, "Invalid password");
                 HttpResponse::Unauthorized().json(ErrorResponse {
@@ -266,37 +300,39 @@ async fn get_user_info(
                 Ok(user) => {
                     let username = user.username.clone();
                     log_info!(state.http_client, "get_user_info", username, "User info retrieved for ID: {}", user_id);
-                    let greeting = format_user_greeting(user);
-                    HttpResponse::Ok()
-                        .content_type("text/plain; charset=utf-8")
-                        .body(greeting)
+                    // Return JSON response as per API specification
+                    HttpResponse::Ok().json(UserInfoResponse::from(user))
                 }
                 Err(DatabaseError::UserNotFound) => {
                     log_info!(state.http_client, "get_user_info", user_id, "User not found");
-                    HttpResponse::NotFound()
-                        .content_type("text/plain; charset=utf-8")
-                        .body(format!("User with ID {} not found", user_id))
+                    HttpResponse::NotFound().json(ErrorResponse {
+                        error: "USER_NOT_FOUND".to_string(),
+                        message: format!("User with ID {} not found", user_id),
+                    })
                 }
                 Err(DatabaseError::ConnectionError(_)) => {
                     log_error!(state.http_client, "get_user_info", "", "Database connection error");
-                    HttpResponse::ServiceUnavailable()
-                        .content_type("text/plain; charset=utf-8")
-                        .body("Database connection failed")
+                    HttpResponse::ServiceUnavailable().json(ErrorResponse {
+                        error: "DATABASE_UNAVAILABLE".to_string(),
+                        message: "Database connection failed".to_string(),
+                    })
                 }
                 Err(e) => {
                     log_error!(state.http_client, "get_user_info", user_id, "Error fetching user: {:?}", e);
-                    HttpResponse::InternalServerError()
-                        .content_type("text/plain; charset=utf-8")
-                        .body("Failed to fetch user")
+                    HttpResponse::InternalServerError().json(ErrorResponse {
+                        error: "INTERNAL_ERROR".to_string(),
+                        message: "Failed to fetch user".to_string(),
+                    })
                 }
             }
         }
         Ok(_) => {
             // Negative or zero user_id
             log_info!(state.http_client, "get_user_info", user_id_str, "Invalid user_id (non-positive)");
-            HttpResponse::BadRequest()
-                .content_type("text/plain; charset=utf-8")
-                .body("user_id must be a positive integer")
+            HttpResponse::BadRequest().json(ErrorResponse {
+                error: "VALIDATION_ERROR".to_string(),
+                message: "user_id must be a positive integer".to_string(),
+            })
         }
         Err(_) => {
             // Non-numeric user_id
