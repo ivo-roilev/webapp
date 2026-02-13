@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 #[allow(dead_code)]
 pub enum LogLevel {
     Debug,
@@ -20,7 +18,7 @@ impl LogLevel {
 }
 
 pub fn dual_log(
-    client: &Arc<reqwest::Client>,
+    client: reqwest::Client,
     level: LogLevel,
     app: &str,
     user: Option<String>,
@@ -37,7 +35,6 @@ pub fn dual_log(
 
     // 2. Remote logging (fire and forget)
     if let Ok(logger_url) = std::env::var("LOGGER_URL") {
-        let client = Arc::clone(client);
         let payload = serde_json::json!({
             "timestamp": chrono::Utc::now().to_rfc3339(),
             "level": level.as_str(),
@@ -65,7 +62,7 @@ macro_rules! log_info {
         let msg = format!($fmt, $($arg)+);
         let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
-            $client,
+            $client.clone(),
             $crate::logger::LogLevel::Info,
             $app,
             user_opt,
@@ -76,7 +73,7 @@ macro_rules! log_info {
     ($client:expr, $app:expr, $user:expr, $msg:expr) => {
         let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
-            $client,
+            $client.clone(),
             $crate::logger::LogLevel::Info,
             $app,
             user_opt,
@@ -92,7 +89,7 @@ macro_rules! log_error {
         let msg = format!($fmt, $($arg)+);
         let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
-            $client,
+            $client.clone(),
             $crate::logger::LogLevel::Error,
             $app,
             user_opt,
@@ -103,7 +100,7 @@ macro_rules! log_error {
     ($client:expr, $app:expr, $user:expr, $msg:expr) => {
         let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
-            $client,
+            $client.clone(),
             $crate::logger::LogLevel::Error,
             $app,
             user_opt,
@@ -119,7 +116,7 @@ macro_rules! log_warn {
         let msg = format!($fmt, $($arg)+);
         let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
-            $client,
+            $client.clone(),
             $crate::logger::LogLevel::Warn,
             $app,
             user_opt,
@@ -130,7 +127,7 @@ macro_rules! log_warn {
     ($client:expr, $app:expr, $user:expr, $msg:expr) => {
         let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
-            $client,
+            $client.clone(),
             $crate::logger::LogLevel::Warn,
             $app,
             user_opt,
@@ -146,7 +143,7 @@ macro_rules! log_debug {
         let msg = format!($fmt, $($arg)+);
         let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
-            $client,
+            $client.clone(),
             $crate::logger::LogLevel::Debug,
             $app,
             user_opt,
@@ -157,7 +154,7 @@ macro_rules! log_debug {
     ($client:expr, $app:expr, $user:expr, $msg:expr) => {
         let user_opt = if $user.to_string().is_empty() { None } else { Some($user.to_string()) };
         $crate::logger::dual_log(
-            $client,
+            $client.clone(),
             $crate::logger::LogLevel::Debug,
             $app,
             user_opt,
