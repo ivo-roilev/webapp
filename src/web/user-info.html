@@ -9,12 +9,8 @@
 </head>
 
 <body>
-  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">🌙</button>
-
   <div class="page-container">
     <div class="card">
-      <h1>User Information</h1>
-
       <div id="loadingMessage" class="loading">Loading your information</div>
       <div id="errorMessage" class="error-message hidden"></div>
       <div id="greetingContainer" class="hidden">
@@ -24,50 +20,19 @@
   </div>
 
   <script>
-    // Theme toggle functionality
-    const themeToggle = document.getElementById('themeToggle');
-    const htmlElement = document.documentElement;
-
-    // Load theme from localStorage or detect system preference
-    function loadTheme() {
-      const savedTheme = localStorage.getItem('theme');
-      if (savedTheme) {
-        htmlElement.setAttribute('data-theme', savedTheme);
-        updateThemeIcon(savedTheme);
-      } else {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const theme = prefersDark ? 'dark' : 'light';
-        htmlElement.setAttribute('data-theme', theme);
-        updateThemeIcon(theme);
-      }
-    }
-
-    function updateThemeIcon(theme) {
-      themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-    }
-
-    themeToggle.addEventListener('click', () => {
-      const currentTheme = htmlElement.getAttribute('data-theme');
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-      htmlElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
-      updateThemeIcon(newTheme);
-    });
-
-    loadTheme();
-
     // User info fetching
     const loadingMessage = document.getElementById('loadingMessage');
     const errorMessage = document.getElementById('errorMessage');
     const greetingContainer = document.getElementById('greetingContainer');
     const greetingText = document.getElementById('greetingText');
 
-    // Check for user_id in localStorage
-    const userId = localStorage.getItem('user_id');
+    // Get user_id from URL query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('user_id');
 
     if (!userId) {
-      // No user_id found, redirect to login
-      window.location.href = 'login.html';
+      // No user_id in URL, redirect to login
+      window.location.href = 'index.html';
     } else {
       // Fetch user greeting
       fetchUserGreeting(userId);
@@ -109,7 +74,8 @@
         if (retryButton.parentNode) {
           retryButton.parentNode.removeChild(retryButton);
         }
-        const userId = localStorage.getItem('user_id');
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('user_id');
         fetchUserGreeting(userId);
       });
 

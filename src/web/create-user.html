@@ -9,8 +9,6 @@
 </head>
 
 <body>
-  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">🌙</button>
-
   <div class="page-container">
     <div class="card">
       <h1>Create New User</h1>
@@ -18,7 +16,7 @@
 
       <div id="errorMessage" class="error-message hidden"></div>
 
-      <form id="createUserForm">
+      <form id="createUserForm" method="POST" action="http://localhost:8080/api/create-user">
         <div class="form-group">
           <label for="username">Username <span class="required">*</span></label>
           <input type="text" id="username" name="username" required placeholder="Enter username">
@@ -31,12 +29,12 @@
 
         <div class="form-group">
           <label for="firstName">First Name</label>
-          <input type="text" id="firstName" name="firstName" placeholder="Enter first name (optional)">
+          <input type="text" id="firstName" name="first_name" placeholder="Enter first name (optional)">
         </div>
 
         <div class="form-group">
           <label for="lastName">Last Name</label>
-          <input type="text" id="lastName" name="lastName" placeholder="Enter last name (optional)">
+          <input type="text" id="lastName" name="last_name" placeholder="Enter last name (optional)">
         </div>
 
         <div class="form-group">
@@ -58,108 +56,31 @@
       </form>
 
       <div class="link-container">
-        <p>Already have an account? <a href="login.html">Back to Login</a></p>
+        <p>Already have an account? <a href="index.html">Login</a></p>
       </div>
     </div>
   </div>
 
   <script>
-    // Theme toggle functionality
-    const themeToggle = document.getElementById('themeToggle');
-    const htmlElement = document.documentElement;
-
-    // Load theme from localStorage or detect system preference
-    function loadTheme() {
-      const savedTheme = localStorage.getItem('theme');
-      if (savedTheme) {
-        htmlElement.setAttribute('data-theme', savedTheme);
-        updateThemeIcon(savedTheme);
-      } else {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const theme = prefersDark ? 'dark' : 'light';
-        htmlElement.setAttribute('data-theme', theme);
-        updateThemeIcon(theme);
-      }
-    }
-
-    function updateThemeIcon(theme) {
-      themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-    }
-
-    themeToggle.addEventListener('click', () => {
-      const currentTheme = htmlElement.getAttribute('data-theme');
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-      htmlElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
-      updateThemeIcon(newTheme);
-    });
-
-    loadTheme();
-
-    // Form submission handler
-    const createUserForm = document.getElementById('createUserForm');
-    const errorMessage = document.getElementById('errorMessage');
-
-    createUserForm.addEventListener('submit', async (e) => {
+    document.getElementById('createUserForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-
-      // Hide any previous error messages
-      errorMessage.classList.add('hidden');
-
-      // Get form values
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
-      const firstName = document.getElementById('firstName').value.trim();
-      const lastName = document.getElementById('lastName').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const title = document.getElementById('title').value.trim();
-      const hobby = document.getElementById('hobby').value.trim();
-
-      // Validate required fields
-      if (!username || !password) {
-        errorMessage.textContent = 'Username and password are required.';
-        errorMessage.classList.remove('hidden');
-        return;
-      }
-
-      // Build request body with only non-empty fields
-      const userData = { username, password };
-      if (firstName) userData.first_name = firstName;
-      if (lastName) userData.last_name = lastName;
-      if (email) userData.email = email;
-      if (title) userData.title = title;
-      if (hobby) userData.hobby = hobby;
-
-      // Disable submit button
-      const submitButton = createUserForm.querySelector('button[type="submit"]');
-      submitButton.disabled = true;
-      submitButton.textContent = 'Creating...';
-
+      const formData = new FormData(e.target);
       try {
-        const response = await fetch('http://localhost:8080/api/users', {
+        const response = await fetch('http://localhost:8080/api/create-user', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(userData),
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(formData)
         });
-
         if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem('user_id', data.user_id);
-          window.location.href = 'user-info.html';
+          const userId = await response.text();
+          window.location.href = `user-info.html?user_id=${userId}`;
         } else {
-          const errorData = await response.json();
-          errorMessage.textContent = errorData.message || 'Failed to create user. Please try again.';
-          errorMessage.classList.remove('hidden');
-          submitButton.disabled = false;
-          submitButton.textContent = 'Create User';
+          document.getElementById('errorMessage').textContent = 'Failed to create user';
+          document.getElementById('errorMessage').classList.remove('hidden');
         }
-      } catch (error) {
-        errorMessage.textContent = 'Network error. Please check your connection and try again.';
-        errorMessage.classList.remove('hidden');
-        submitButton.disabled = false;
-        submitButton.textContent = 'Create User';
+      } catch (err) {
+        document.getElementById('errorMessage').textContent = 'Network error';
+        document.getElementById('errorMessage').classList.remove('hidden');
       }
     });
   </script>
