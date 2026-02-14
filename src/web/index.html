@@ -16,7 +16,7 @@
 
       <div id="errorMessage" class="error-message hidden"></div>
 
-      <form method="POST" action="http://localhost:8080/api/login">
+      <form id="loginForm" method="POST" action="http://localhost:8080/api/login">
         <div class="form-group">
           <label for="username">Username <span class="required">*</span></label>
           <input type="text" id="username" name="username" required placeholder="Enter username">
@@ -35,6 +35,30 @@
       </div>
     </div>
   </div>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      try {
+        const response = await fetch('http://localhost:8080/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(formData)
+        });
+        if (response.ok) {
+          const userId = await response.text();
+          window.location.href = `user-info.html?user_id=${userId}`;
+        } else {
+          document.getElementById('errorMessage').textContent = 'Login failed';
+          document.getElementById('errorMessage').classList.remove('hidden');
+        }
+      } catch (err) {
+        document.getElementById('errorMessage').textContent = 'Network error';
+        document.getElementById('errorMessage').classList.remove('hidden');
+      }
+    });
+  </script>
 </body>
 
 </html>

@@ -14,55 +14,58 @@ The create user endpoint SHALL be renamed from `/api/users` to `/api/create-user
 - **WHEN** client sends POST request to `/api/users`
 - **THEN** server returns 404 Not Found or 405 Method Not Allowed
 
-### Requirement: Login Endpoint SHALL Return HTTP 303 Redirect
+### Requirement: Login Endpoint SHALL Return Plain Text User ID
 
-The login endpoint SHALL return HTTP 303 See Other status with Location header instead of JSON response upon successful authentication.
+The login endpoint SHALL return HTTP 200 OK with plain text user_id instead of JSON response upon successful authentication.
 
-#### Scenario: Successful login returns redirect
+#### Scenario: Successful login returns user ID
 - **WHEN** client sends POST to `/api/login` with valid credentials
-- **THEN** server returns status 303 See Other
-- **AND** Location header contains `/user-info.html?user_id={id}`
+- **THEN** server returns status 200 OK
+- **AND** Content-Type header is `text/plain`
+- **AND** response body contains the user_id as plain text (e.g., "1")
 
-#### Scenario: Failed login returns error without redirect
+#### Scenario: Failed login returns error
 - **WHEN** client sends POST to `/api/login` with invalid credentials
 - **THEN** server returns status 401 Unauthorized
-- **AND** no Location header is present
+- **AND** response contains JSON error message
 
 #### Scenario: Missing credentials return validation error
 - **WHEN** client sends POST to `/api/login` with empty username or password
 - **THEN** server returns status 400 Bad Request
-- **AND** no Location header is present
+- **AND** response contains JSON error message
 
-### Requirement: Create User Endpoint SHALL Return HTTP 303 Redirect
+### Requirement: Create User Endpoint SHALL Return Plain Text User ID
 
-The create user endpoint SHALL return HTTP 303 See Other status with Location header instead of JSON response upon successful user creation.
+The create user endpoint SHALL return HTTP 200 OK with plain text user_id instead of JSON response upon successful user creation.
 
-#### Scenario: Successful user creation returns redirect
+#### Scenario: Successful user creation returns user ID
 - **WHEN** client sends POST to `/api/create-user` with valid user data
-- **THEN** server returns status 303 See Other
-- **AND** Location header contains `/user-info.html?user_id={id}`
+- **THEN** server returns status 200 OK
+- **AND** Content-Type header is `text/plain`
+- **AND** response body contains the user_id as plain text (e.g., "1")
 
-#### Scenario: Duplicate username returns conflict without redirect
+#### Scenario: Duplicate username returns conflict
 - **WHEN** client sends POST to `/api/create-user` with existing username
 - **THEN** server returns status 409 Conflict
-- **AND** no Location header is present
+- **AND** response contains JSON error message
 
 #### Scenario: Invalid user data returns validation error
 - **WHEN** client sends POST to `/api/create-user` with invalid data
 - **THEN** server returns status 400 Bad Request
-- **AND** no Location header is present
+- **AND** response contains JSON error message
 
-### Requirement: Redirect Location SHALL Include User ID as Query Parameter
+### Requirement: Backend SHALL Accept Form-Encoded Data
 
-When redirecting after successful login or user creation, the Location header SHALL include the user_id as a query parameter.
+Both login and create user endpoints SHALL accept `application/x-www-form-urlencoded` content type for form submissions.
 
-#### Scenario: Redirect URL includes user_id
-- **WHEN** server returns 303 redirect after successful operation
-- **THEN** Location header matches pattern `/user-info.html?user_id={positive_integer}`
+#### Scenario: Form-encoded data is accepted
+- **WHEN** client sends POST with Content-Type `application/x-www-form-urlencoded`
+- **THEN** server successfully parses the form data
+- **AND** processes the request normally
 
 #### Scenario: User ID is positive integer
-- **WHEN** server generates redirect URL
-- **THEN** user_id query parameter MUST be a positive integer (greater than 0)
+- **WHEN** server returns user_id after successful operation
+- **THEN** user_id MUST be a positive integer (greater than 0)
 
 ## MODIFIED Requirements
 

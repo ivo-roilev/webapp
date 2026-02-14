@@ -2,7 +2,7 @@
 
 ## Overview
 
-Simplify the web UI to maximize plain HTML usage and minimize JavaScript footprint by leveraging native browser capabilities. This change replaces the current SPA-style architecture with traditional HTML forms that POST directly to the backend, reducing JavaScript from ~325 lines to ~15 lines (95% reduction).
+Simplify the web UI to maximize plain HTML usage and minimize JavaScript footprint by leveraging native browser capabilities. This change replaces the current SPA-style architecture with minimal JavaScript form handling (~12 lines per form) and plain text API responses, reducing JavaScript from ~325 lines to ~40 lines (96% reduction).
 
 ## Current State
 
@@ -37,13 +37,14 @@ The web UI currently consists of three HTML pages with significant JavaScript:
 - Avoids confusion with `GET /api/users/{user_id}` endpoint
 - Makes the endpoint purpose more explicit
 
-**2. Modify POST endpoints to return HTTP redirects instead of JSON:**
+**2. Modify POST endpoints to return plain text user_id:**
 
-1. **POST /api/login**: Return `303 See Other` redirect to `/user-info.html?user_id={id}` instead of JSON response
-2. **POST /api/create-user**: Return `303 See Other` redirect to `/user-info.html?user_id={id}` instead of JSON response
+1. **POST /api/login**: Return `200 OK` with plain text user_id (e.g., "1") instead of JSON response
+2. **POST /api/create-user**: Return `200 OK` with plain text user_id (e.g., "1") instead of JSON response
 3. **GET /api/users/{id}**: No changes (already returns plain text)
+4. **Accept form-encoded data**: Endpoints accept `application/x-www-form-urlencoded` content type
 
-This eliminates the need for JavaScript to handle responses and perform redirects.
+This eliminates JSON parsing and simplifies the API contract.
 
 ### Frontend Changes
 
@@ -53,13 +54,14 @@ This eliminates the need for JavaScript to handle responses and perform redirect
 - Let browser/OS handle theme preference automatically
 - Zero JavaScript required for theming
 
-**2. Replace Fetch with Native Forms (~150 lines)**
-- Convert form event handlers from `preventDefault() + fetch()` to native form submission
-- Forms POST directly: `<form method="POST" action="/api/login">`
-- Browser handles submission, follows redirects automatically
-- Remove all JSON parsing and response handling code
+**2. Replace Complex Fetch with Minimal Form Submission (~12 lines per form)**
+- Use minimal JavaScript (~12 lines) to intercept form submission
+- Send form data as `application/x-www-form-urlencoded` using URLSearchParams
+- Parse plain text response (user_id) and redirect to user-info page
+- Better error handling than native submission
+- Forms have action attribute as progressive enhancement fallback
 
-**3. Remove Client-Side Validation (~85 lines)**
+**3. Remove Client-Side Validation (Keep HTML5 Only) (~85 lines)**
 - Remove JavaScript validation logic
 - Keep HTML5 `required` attributes for basic validation
 - Backend validation + database constraints are sufficient
@@ -69,17 +71,16 @@ This eliminates the need for JavaScript to handle responses and perform redirect
 - Keep only in user-info.html for fetching and displaying greeting
 - Read user_id from URL parameters: `new URLSearchParams(window.location.search)`
 - Fetch user greeting: `fetch(\`/api/users/\${userId}\`)`
-- Display in DOM: `document.getElementById('greeting').textContent = data`
+- Display in DOM: `document.getElementById('greetingText').textContent = data`
 - No other JavaScript needed
 
 **5. Simplify Entry Point**
-- Remove index.html redirect
-- Rename login.html to index.html (or keep login.html as entry point)
+- Remove old redirect-only index.html
+- Rename login.html to index.html to serve as natural entry point
 
 **6. Remove Redundant Page Headings**
 - Remove `<h1>User Information</h1>` from user-info.html (provides no value to users)
 - Keep other semantic structure intact
-- Consider similar cleanup for other pages if headings add no value
 
 ### State Management Changes
 
@@ -91,13 +92,13 @@ This eliminates the need for JavaScript to handle responses and perform redirect
 
 ## Benefits
 
-1. **Massive JavaScript Reduction**: 325 lines → 15 lines (95% reduction)
-2. **Simpler Architecture**: Traditional forms + backend redirects
-3. **Better Browser Integration**: Native form handling, no custom JS needed
+1. **Massive JavaScript Reduction**: 325 lines → 40 lines (96% reduction)
+2. **Simpler Architecture**: Minimal JavaScript + plain text API responses
+3. **Better Error Handling**: JavaScript enables graceful error messages
 4. **Automatic Theme Support**: System preference via CSS, no toggle needed
 5. **Reduced Maintenance**: Less code to maintain, test, and debug
-6. **Progressive Enhancement**: Works without JavaScript (except user-info display)
-7. **Learning Opportunity**: Understand HTML-first development patterns
+6. **Cleaner API**: Plain text responses simpler than JSON
+7. **Learning Opportunity**: Understand minimal JavaScript patterns
 
 ## Trade-offs
 

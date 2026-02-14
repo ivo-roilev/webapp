@@ -1,48 +1,62 @@
-# Spec: Native HTML Forms
+# Spec: Minimal JavaScript Form Submission
 
 ## ADDED Requirements
 
-### Requirement: Login Form SHALL Submit via Native HTML POST
+### Requirement: Login Form SHALL Use Minimal JavaScript for Submission
 
-The login form SHALL use native HTML form submission with method="POST" and action="/api/login", without JavaScript event handlers.
+The login form SHALL use minimal JavaScript (~12 lines) to intercept form submission, send data via fetch(), and handle the redirect client-side.
 
 #### Scenario: Login form has correct attributes
 - **WHEN** login HTML is parsed
-- **THEN** form element has `method="POST"` attribute
-- **AND** form element has `action="/api/login"` attribute
+- **THEN** form element has `id="loginForm"` attribute
+- **AND** form element has `method="POST"` attribute
+- **AND** form element has `action="http://localhost:8080/api/login"` attribute
 
-#### Scenario: Login form submits without JavaScript
+#### Scenario: Login form JavaScript intercepts submission
 - **WHEN** user submits login form
-- **THEN** browser performs native POST request to `/api/login`
-- **AND** browser automatically follows 303 redirect from server
+- **THEN** JavaScript calls `event.preventDefault()`
+- **AND** JavaScript sends fetch() request to `/api/login` with URLSearchParams body
+- **AND** JavaScript sets Content-Type to `application/x-www-form-urlencoded`
 
-#### Scenario: No JavaScript preventDefault on login form
-- **WHEN** login HTML JavaScript is examined
-- **THEN** no `event.preventDefault()` calls exist for form submission
-- **AND** no `fetch()` calls to `/api/login` exist
+#### Scenario: Login success triggers client-side redirect
+- **WHEN** server returns 200 OK with user_id
+- **THEN** JavaScript reads response as plain text
+- **AND** JavaScript redirects to `user-info.html?user_id=${userId}`
 
-### Requirement: Create User Form SHALL Submit via Native HTML POST
+#### Scenario: Login failure shows error message
+- **WHEN** server returns non-OK status
+- **THEN** JavaScript displays error message to user
+- **AND** no redirect occurs
 
-The create user form SHALL use native HTML form submission with method="POST" and action="/api/create-user", without JavaScript event handlers.
+### Requirement: Create User Form SHALL Use Minimal JavaScript for Submission
+
+The create user form SHALL use minimal JavaScript (~12 lines) to intercept form submission, send data via fetch(), and handle the redirect client-side.
 
 #### Scenario: Create user form has correct attributes
 - **WHEN** create-user HTML is parsed
-- **THEN** form element has `method="POST"` attribute
-- **AND** form element has `action="/api/create-user"` attribute
+- **THEN** form element has `id="createUserForm"` attribute
+- **AND** form element has `method="POST"` attribute
+- **AND** form element has `action="http://localhost:8080/api/create-user"` attribute
 
-#### Scenario: Create user form submits without JavaScript
+#### Scenario: Create user form JavaScript intercepts submission
 - **WHEN** user submits create user form
-- **THEN** browser performs native POST request to `/api/create-user`
-- **AND** browser automatically follows 303 redirect from server
+- **THEN** JavaScript calls `event.preventDefault()`
+- **AND** JavaScript sends fetch() request to `/api/create-user` with URLSearchParams body
+- **AND** JavaScript sets Content-Type to `application/x-www-form-urlencoded`
 
-#### Scenario: No JavaScript preventDefault on create user form
-- **WHEN** create-user HTML JavaScript is examined
-- **THEN** no `event.preventDefault()` calls exist for form submission
-- **AND** no `fetch()` calls to `/api/create-user` exist
+#### Scenario: Create user success triggers client-side redirect
+- **WHEN** server returns 200 OK with user_id
+- **THEN** JavaScript reads response as plain text
+- **AND** JavaScript redirects to `user-info.html?user_id=${userId}`
+
+#### Scenario: Create user failure shows error message
+- **WHEN** server returns non-OK status
+- **THEN** JavaScript displays error message to user
+- **AND** no redirect occurs
 
 ### Requirement: Forms SHALL Use HTML5 Validation Only
 
-Forms SHALL rely on HTML5 `required` attributes and native browser validation without additional JavaScript validation.
+Forms SHALL rely on HTML5 `required` attributes and native browser validation without additional JavaScript validation logic.
 
 #### Scenario: Required fields have HTML5 required attribute
 - **WHEN** form HTML is parsed
@@ -51,38 +65,26 @@ Forms SHALL rely on HTML5 `required` attributes and native browser validation wi
 #### Scenario: No JavaScript validation functions exist
 - **WHEN** HTML JavaScript is examined
 - **THEN** no JavaScript functions for field validation exist
-- **AND** no JavaScript validation error messages exist
+- **AND** no JavaScript validation error messages exist (except for server errors)
 
 #### Scenario: Browser performs native validation
 - **WHEN** user submits form with empty required field
 - **THEN** browser shows native validation message
 - **AND** form does not submit until field is filled
 
-### Requirement: All fetch() API Calls for Form Submission SHALL Be Removed
+### Requirement: Form Data SHALL Be Sent as URL-Encoded
 
-All JavaScript fetch() calls to login and create-user endpoints SHALL be removed from HTML files.
+Form submissions SHALL convert FormData to URLSearchParams to ensure proper `application/x-www-form-urlencoded` encoding.
 
-#### Scenario: No fetch to login endpoint
-- **WHEN** login HTML JavaScript is examined
-- **THEN** no `fetch('/api/login')` or `fetch('http://localhost:8080/api/login')` calls exist
+#### Scenario: Form data is URL-encoded
+- **WHEN** JavaScript submits form
+- **THEN** fetch() uses `new URLSearchParams(formData)` as body
+- **AND** Content-Type header is set to `application/x-www-form-urlencoded`
 
-#### Scenario: No fetch to create-user endpoint
-- **WHEN** create-user HTML JavaScript is examined
-- **THEN** no `fetch('/api/create-user')` or `fetch('http://localhost:8080/api/create-user')` calls exist
-
-### Requirement: All JSON Parsing for Form Responses SHALL Be Removed
-
-All JavaScript code that parses JSON responses from login and create-user endpoints SHALL be removed.
-
-#### Scenario: No JSON parsing after form submission
-- **WHEN** login HTML JavaScript is examined
-- **THEN** no `response.json()` calls exist after form submission
-- **AND** no JSON parsing of user_id or error fields exists
-
-#### Scenario: No manual redirect after form submission
-- **WHEN** create-user HTML JavaScript is examined
-- **THEN** no `window.location.href` assignments after form submission exist
-- **AND** browser handles redirect automatically via HTTP 303
+#### Scenario: Server receives properly encoded data
+- **WHEN** server receives form submission
+- **THEN** data is parsed as form-encoded (not multipart or JSON)
+- **AND** all field names and values are correctly decoded
 
 ## MODIFIED Requirements
 

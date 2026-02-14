@@ -47,31 +47,24 @@ The current web UI follows a SPA-style architecture with JSON REST APIs, despite
 
 ## Decisions
 
-### Decision 1: Backend Returns HTTP 303 Redirects Instead of JSON
+### Decision 1: Backend Returns Plain Text User ID, Frontend Handles Redirect
 
-**Choice:** POST endpoints return `303 See Other` with `Location` header instead of JSON response bodies.
+**Choice:** POST endpoints return `200 OK` with plain text user_id. Minimal JavaScript (~12 lines per form) intercepts submission, sends form data via fetch(), and redirects client-side.
 
 **Rationale:**
-- HTML forms naturally follow redirects - browser handles this automatically
-- Eliminates need for JavaScript to parse JSON and manually redirect
-- Standard HTTP pattern for POST-Redirect-GET workflow
-- Status code 303 specifically designed for "see the result at this URL"
+- Cleaner API separation: backend returns data, frontend handles navigation
+- Plain text response simpler than JSON (no parsing overhead)
+- Minimal JavaScript (~12 lines) still achieves 96% reduction from original ~325 lines
+- Frontend has full control over redirect behavior and error handling
+- Backend endpoints remain RESTful and easy to test
 
 **Alternatives Considered:**
-- **Keep JSON API + add SSR**: More complex, requires template engine, loses static file simplicity
-- **Return HTML directly from POST**: Less RESTful, harder to test, breaks SPA clients if added later
-- **Keep current JSON approach**: No simplification achieved
+- **HTTP 303 Redirects**: Browser follows automatically but backend couples data response with navigation logic; forms submit natively but error handling is harder
+- **Keep JSON API**: Doesn't achieve simplification goal; requires more complex response parsing
+- **Return HTML directly from POST**: Less RESTful, harder to test, breaks API clients
 
 **Implementation:**
-```rust
-// Before:
-HttpResponse::Created().json(CreateUserResponse { user_id })
-
-// After:
-HttpResponse::SeeOther()
-    .append_header(("Location", format!("/user-info.html?user_id={}", user_id)))
-    .finish()
-```
+Backend handlers return HTTP 200 OK with content type "text/plain" and the user_id as the response body (e.g., "1"). Frontend JavaScript intercepts form submission, converts FormData to URLSearchParams for proper form encoding, sends the POST request with appropriate headers, reads the plain text response, and performs client-side navigation to the user-info page with the user_id as a query parameter.
 
 ### Decision 2: Remove Theme Toggle, Use CSS Media Queries Only
 
@@ -89,24 +82,7 @@ HttpResponse::SeeOther()
 - **Remove dark theme entirely**: Loses accessibility feature
 
 **Implementation:**
-```css
-/* Add to style.css */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg-color: #1a1a1a;
-        --text-color: #e0e0e0;
-        /* ... other dark mode variables */
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    :root {
-        --bg-color: #ffffff;
-        --text-color: #333333;
-        /* ... other light mode variables */
-    }
-}
-```
+Style.css defines separate CSS media queries for light and dark color schemes using the prefers-color-scheme media feature. Each media query sets CSS custom properties for colors (background, text, borders, etc.) appropriate to that theme. The browser automatically applies the correct theme based on the user's system preference without any JavaScript.
 
 ### Decision 3: Replace localStorage with URL Query Parameters
 
@@ -151,32 +127,24 @@ HttpResponse::SeeOther()
 3. Backend returns appropriate HTTP status (400/409/500)
 4. Browser shows error page or backend can return custom error HTML
 
-### Decision 5: Keep Minimal JavaScript in user-info.html Only
+### Decision 5: Keep Minimal JavaScript for Form Submission and Display
 
-**Choice:** ~15 lines of JavaScript only in user-info.html to fetch and display user greeting.
+**Choice:** ~12 lines of JavaScript in login/create-user pages for form submission, and ~15 lines in user-info.html to fetch and display user greeting.
 
 **Rationale:**
-- Backend returns plain text greeting, not HTML
-- Need to display dynamic content fetched from API
-- Acceptable trade-off: 98% reduction (325→15) while maintaining smooth UX
-- GET endpoint already returns text, minimal change needed
+- Form submission JS enables better error handling and smooth UX
+- Backend returns data (user_id), frontend handles navigation
+- Acceptable trade-off: 96% reduction (325→~40 total lines) while maintaining smooth UX
+- GET endpoint already returns text, minimal change needed for display
+- JavaScript is focused and purposeful (submission + display only)
 
 **Alternatives Considered:**
+- **Zero JavaScript with native form submission + 303 redirects**: Error handling is harder, less control over navigation
 - **Server-side rendering**: Out of scope, requires template engine
-- **Inline data in redirect**: Would need to return HTML from POST (see Decision 1)
-- **Pre-fetch on backend**: Can't pre-generate page without SSR
+- **Inline data in redirect**: Would need to return HTML from POST
 
 **Implementation:**
-```javascript
-// Total: ~15 lines
-const params = new URLSearchParams(window.location.search);
-const userId = params.get('user_id');
-if (!userId) { /* redirect to login */ }
-fetch(`/api/users/${userId}`)
-    .then(r => r.text())
-    .then(greeting => document.getElementById('greeting').textContent = greeting)
-    .catch(() => document.getElementById('greeting').textContent = 'Error loading user info');
-```
+Form pages add event listeners to intercept submission, prevent default behavior, collect form data, convert to URLSearchParams, POST to the backend with form-encoded content type, read the plain text user_id response, and navigate to the user-info page. The user-info page extracts user_id from URL query parameters using URLSearchParams, redirects to index.html if missing, fetches the greeting text from the backend API, and displays it in the DOM with basic error handling.
 
 ### Decision 6: Rename POST /api/users to POST /api/create-user
 
@@ -193,15 +161,7 @@ fetch(`/api/users/${userId}`)
 - **Use /api/users/new**: More RESTful but longer action URL
 
 **Implementation:**
-```rust
-// Route configuration
-.route("/api/create-user", web::post().to(create_user))
-```
-
-```html
-<!-- Form action -->
-<form method="POST" action="/api/create-user">
-```
+Backend route configuration registers the endpoint at /api/create-user instead of /api/users. HTML forms update their action attribute to point to the new endpoint path.
 
 ### Decision 7: Remove Redundant Page Headings
 
@@ -220,22 +180,26 @@ fetch(`/api/users/${userId}`)
 - **Remove from all pages**: Other pages may benefit from headings, evaluate case-by-case
 
 **Implementation:**
-```html
-<!-- Before -->
-<div class="card">
-  <h1>User Information</h1>
-  <div id="greetingContainer">
-    <p class="greeting" id="greetingText"></p>
-  </div>
-</div>
+The H1 heading element containing "User Information" is removed from user-info.html, leaving only the greeting container and its content within the card structure.
 
-<!-- After -->
-<div class="card">
-  <div id="greetingContainer">
-    <p class="greeting" id="greetingText"></p>
-  </div>
-</div>
-```
+### Decision 8: Rename login.html to index.html
+
+**Choice:** Rename login.html to index.html to serve as the application entry point.
+
+**Rationale:**
+- Eliminates the redirect-only index.html file
+- Makes login page the natural entry point when browsing to root
+- Simpler file structure - one less file to maintain
+- No JavaScript redirect needed for entry point
+- Standard web convention (index.html as default page)
+
+**Alternatives Considered:**
+- **Keep separate index.html**: Unnecessary extra file and redirect
+- **Use meta refresh in index.html**: Still an extra file and redirect layer
+- **Keep login.html name**: Would require explicit URL or redirect from index
+
+**Implementation:**
+The login.html file is renamed to index.html. All references to "login.html" in other HTML files (create-user.html and user-info.html) are updated to point to "index.html" instead.
 
 ## Risks / Trade-offs
 
@@ -276,21 +240,22 @@ fetch(`/api/users/${userId}`)
 - Can enhance with custom error pages if needed
 
 ### Risk: Breaking Existing Tests
-**Impact:** Handler tests expect JSON responses, will fail after redirect changes.
+**Impact:** Handler tests expect JSON responses, will fail after changes to plain text.
 
 **Mitigation:**
-- Update test assertions to expect 303 status and Location header
-- Test redirect target URL matches expected pattern
-- Add integration tests for full redirect flow
+- Update test assertions to expect 200 OK status and plain text content type
+- Test response body contains valid user_id integer
+- Update test fixtures to send form-encoded data instead of JSON
 - Estimated ~30min to update test suite
 
-### Risk: Browser Back Button Resubmission
-**Impact:** Users hitting back after POST might trigger resubmission warning.
+### Risk: Minimal JavaScript Still Required
+**Impact:** Forms require JavaScript to function, no progressive enhancement to zero-JS.
 
 **Mitigation:**
-- 303 redirect specifically prevents this (POST→Redirect→GET pattern)
-- Browser only warns on POST resubmission, not on GET after redirect
-- Standard web pattern handled correctly by all modern browsers
+- Achieved 96% reduction in JavaScript (325→40 lines)
+- JavaScript is focused and minimal (~12 lines per form)
+- Could implement fallback to native form submission with meta refresh if needed
+- Trade-off accepted for better error handling and UX
 
 ## Migration Plan
 

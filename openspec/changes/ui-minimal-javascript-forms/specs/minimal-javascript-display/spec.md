@@ -12,11 +12,11 @@ The user-info.html page SHALL read the user_id from URL query parameters instead
 
 #### Scenario: Redirect to login if user_id missing
 - **WHEN** user-info page loads without user_id query parameter
-- **THEN** page redirects to login page (login.html or index.html)
+- **THEN** page redirects to index.html
 
 #### Scenario: Redirect to login if user_id invalid
 - **WHEN** user-info page loads with non-numeric user_id
-- **THEN** page redirects to login page
+- **THEN** page redirects to index.html
 
 ### Requirement: User Info Page SHALL Fetch Greeting via GET Request
 
@@ -57,19 +57,21 @@ The user-info page SHALL NOT read or write user_id to localStorage.
 - **WHEN** user-info page JavaScript is examined
 - **THEN** no `localStorage.setItem('user_id', ...)` calls exist
 
-### Requirement: No JavaScript SHALL Exist in Login or Create User Pages
+### Requirement: Login and Create User Pages SHALL Have Minimal JavaScript
 
-The login.html and create-user.html pages SHALL contain zero JavaScript code (excluding theme-related code removal).
+The login.html (index.html) and create-user.html pages SHALL contain minimal JavaScript (~12 lines each) only for form submission handling.
 
-#### Scenario: Login page has no JavaScript blocks
-- **WHEN** login HTML is parsed
-- **THEN** no `<script>` tags with JavaScript code exist
-- **AND** no inline event handlers (onclick, onsubmit) exist
+#### Scenario: Login page has minimal JavaScript for form submission
+- **WHEN** index.html JavaScript is examined
+- **THEN** JavaScript code is approximately 12 lines
+- **AND** JavaScript only handles form submission, response parsing, and redirect
+- **AND** no validation, theme, or other logic exists
 
-#### Scenario: Create user page has no JavaScript blocks
-- **WHEN** create-user HTML is parsed
-- **THEN** no `<script>` tags with JavaScript code exist
-- **AND** no inline event handlers (onclick, onsubmit) exist
+#### Scenario: Create user page has minimal JavaScript for form submission
+- **WHEN** create-user HTML JavaScript is examined
+- **THEN** JavaScript code is approximately 12 lines
+- **AND** JavaScript only handles form submission, response parsing, and redirect
+- **AND** no validation, theme, or other logic exists
 
 ## MODIFIED Requirements
 

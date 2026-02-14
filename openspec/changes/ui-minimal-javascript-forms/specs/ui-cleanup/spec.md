@@ -30,19 +30,24 @@ While removing redundant headings, the overall semantic HTML structure SHALL be 
 - **THEN** page structure is understandable
 - **AND** main content is easily discoverable
 
-### Requirement: Entry Point SHALL Be Simplified
+### Requirement: Entry Point SHALL Be login.html Renamed to index.html
 
-The index.html redirect SHALL be removed or replaced, with login.html serving as the primary entry point.
+The login.html file SHALL be renamed to index.html to serve as the application entry point, eliminating the need for a separate redirect page.
 
-#### Scenario: Login page is accessible at root or clear path
-- **WHEN** user navigates to application
-- **THEN** login page is easily accessible
-- **AND** no unnecessary redirect occurs
+#### Scenario: Login page is accessible as index.html
+- **WHEN** user navigates to application root
+- **THEN** index.html serves the login form directly
+- **AND** no redirect occurs
 
-#### Scenario: No JavaScript redirect in index page
-- **WHEN** index.html exists (if kept)
-- **THEN** it either directly serves login content or uses HTML meta refresh
-- **AND** no JavaScript redirect is used
+#### Scenario: Old index.html redirect is removed
+- **WHEN** web directory is examined
+- **THEN** no separate redirect-only index.html exists
+- **AND** login page serves as the primary entry point
+
+#### Scenario: References to login.html are updated
+- **WHEN** other HTML files are examined
+- **THEN** links to "login.html" are updated to "index.html"
+- **AND** JavaScript redirects to login are updated to redirect to "index.html"
 
 ### Requirement: Other Page Headings SHALL Be Reviewed for Value
 
