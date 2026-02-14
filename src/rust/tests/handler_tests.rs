@@ -52,7 +52,7 @@ fn create_test_app(
             db: db,
             http_client: reqwest::Client::new(),
         }))
-        .route("/api/users", web::post().to(create_user))
+        .route("/api/create-user", web::post().to(create_user))
         .route("/api/login", web::post().to(login))
         .route("/api/users/{user_id}", web::get().to(get_user_info))
 }
@@ -114,7 +114,7 @@ async fn test_create_user_success() {
     let app = test::init_service(create_test_app(db.clone())).await;
 
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "testuser",
             "password": "password123"
@@ -122,13 +122,11 @@ async fn test_create_user_success() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 201, "Should return 201 Created");
+    assert_eq!(resp.status().as_u16(), 303, "Should return 303 See Other");
 
-    let body: Value = test::read_body_json(resp).await;
-    assert!(
-        body.get("user_id").is_some(),
-        "Response should contain user_id"
-    );
+    let location = resp.headers().get("Location").expect("Should have Location header");
+    let location_str = location.to_str().unwrap();
+    assert!(location_str.starts_with("/user-info.html?user_id="), "Location should redirect to user-info.html with user_id");
 }
 
 #[actix_web::test]
@@ -143,7 +141,7 @@ async fn test_create_user_with_optional_fields() {
         .await;
 
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "fulluser",
             "password": "password123",
@@ -156,10 +154,11 @@ async fn test_create_user_with_optional_fields() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 201);
+    assert_eq!(resp.status().as_u16(), 303);
 
-    let body: Value = test::read_body_json(resp).await;
-    assert!(body.get("user_id").is_some());
+    let location = resp.headers().get("Location").expect("Should have Location header");
+    let location_str = location.to_str().unwrap();
+    assert!(location_str.starts_with("/user-info.html?user_id="));
 }
 
 #[actix_web::test]
@@ -168,7 +167,7 @@ async fn test_create_user_username_too_long() {
     let app = test::init_service(create_test_app(db)).await;
 
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "this_username_is_way_too_long_and_exceeds_16_chars",
             "password": "password123"
@@ -188,7 +187,7 @@ async fn test_create_user_empty_username() {
     let app = test::init_service(create_test_app(db)).await;
 
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "",
             "password": "password123"
@@ -209,7 +208,7 @@ async fn test_create_user_password_too_long() {
 
     let long_password = "a".repeat(256);
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "testuser",
             "password": long_password
@@ -229,7 +228,7 @@ async fn test_create_user_empty_password() {
     let app = test::init_service(create_test_app(db)).await;
 
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "testuser",
             "password": ""
@@ -250,7 +249,7 @@ async fn test_create_user_optional_field_too_long() {
 
     let long_email = "a".repeat(256) + "@example.com";
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "testuser",
             "password": "password123",
@@ -281,7 +280,7 @@ async fn test_create_user_duplicate_username() {
 
     // Try to create user with same username
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "duplicate",
             "password": "password456"
@@ -309,7 +308,7 @@ async fn test_create_user_logs_to_logger() {
         .await;
 
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "logtest",
             "password": "password123"
@@ -317,7 +316,7 @@ async fn test_create_user_logs_to_logger() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 201);
+    assert_eq!(resp.status().as_u16(), 303);
 
     // Give async logging time to complete
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -336,7 +335,7 @@ async fn test_create_user_logger_failure_doesnt_break_creation() {
         .await;
 
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "resilient",
             "password": "password123"
@@ -346,12 +345,13 @@ async fn test_create_user_logger_failure_doesnt_break_creation() {
     let resp: ServiceResponse = test::call_service(&app, req).await;
     assert_eq!(
         resp.status().as_u16(),
-        201,
+        303,
         "User creation should succeed despite logger failure"
     );
 
-    let body: Value = test::read_body_json(resp).await;
-    assert!(body.get("user_id").is_some());
+    let location = resp.headers().get("Location").expect("Should have Location header");
+    let location_str = location.to_str().unwrap();
+    assert!(location_str.starts_with("/user-info.html?user_id="));
 }
 
 // ============ Login Tests ============
@@ -378,10 +378,11 @@ async fn test_login_success() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 200);
+    assert_eq!(resp.status().as_u16(), 303);
 
-    let body: Value = test::read_body_json(resp).await;
-    assert!(body.get("user_id").is_some());
+    let location = resp.headers().get("Location").expect("Should have Location header");
+    let location_str = location.to_str().unwrap();
+    assert!(location_str.starts_with("/user-info.html?user_id="));
 }
 
 #[actix_web::test]
@@ -461,7 +462,7 @@ async fn test_login_logs_attempt_and_success() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 200);
+    assert_eq!(resp.status().as_u16(), 303);
 
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 }
@@ -607,7 +608,7 @@ async fn test_verify_log_payload_structure() {
         .await;
 
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "logpayload",
             "password": "password123"
@@ -634,7 +635,7 @@ async fn test_logger_failure_simulation() {
         .await;
 
     let req = test::TestRequest::post()
-        .uri("/api/users")
+        .uri("/api/create-user")
         .set_json(json!({
             "username": "failtest",
             "password": "password123"
@@ -644,9 +645,13 @@ async fn test_logger_failure_simulation() {
     let resp: ServiceResponse = test::call_service(&app, req).await;
     assert_eq!(
         resp.status().as_u16(),
-        201,
+        303,
         "Handler should succeed despite logger failure"
     );
+
+    let location = resp.headers().get("Location").expect("Should have Location header");
+    let location_str = location.to_str().unwrap();
+    assert!(location_str.starts_with("/user-info.html?user_id="));
 }
 
 // ============ Database Isolation Tests ============

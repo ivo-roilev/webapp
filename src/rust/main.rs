@@ -196,7 +196,9 @@ async fn create_user(
     match state.db.create_user(&create_request).await {
         Ok(user_id) => {
             log_info!(state.http_client, "create_user", payload.username, "User created successfully with ID: {}", user_id);
-            HttpResponse::Created().json(CreateUserResponse { user_id })
+            HttpResponse::SeeOther()
+                .append_header(("Location", format!("/user-info.html?user_id={}", user_id)))
+                .finish()
         }
         Err(DatabaseError::DuplicateUsername) => {
             log_info!(state.http_client, "create_user", payload.username, "Username already exists");
@@ -249,7 +251,9 @@ async fn login(
             // Compare passwords (plain-text comparison as per design)
             if stored_password == payload.password {
                 log_info!(state.http_client, "login_user", payload.username, "Successful login");
-                HttpResponse::Ok().json(LoginResponse { user_id })
+                HttpResponse::SeeOther()
+                    .append_header(("Location", format!("/user-info.html?user_id={}", user_id)))
+                    .finish()
             } else {
                 log_info!(state.http_client, "login_user", payload.username, "Invalid password");
                 HttpResponse::Unauthorized().json(ErrorResponse {
@@ -385,7 +389,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .app_data(state.clone())
             .route("/health", web::get().to(health_check))
-            .route("/api/users", web::post().to(create_user))
+            .route("/api/create-user", web::post().to(create_user))
             .route("/api/login", web::post().to(login))
             .route("/api/users/{user_id}", web::get().to(get_user_info))
     })
