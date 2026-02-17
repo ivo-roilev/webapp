@@ -16,7 +16,7 @@
 
       <div id="errorMessage" class="error-message hidden"></div>
 
-      <form id="createUserForm" method="POST" action="http://localhost:8080/api/create-user">
+      <form id="createUserForm" method="POST" action="/api/create-user">
         <div class="form-group">
           <label for="username">Username <span class="required">*</span></label>
           <input type="text" id="username" name="username" required placeholder="Enter username">
@@ -66,7 +66,7 @@
       e.preventDefault();
       const formData = new FormData(e.target);
       try {
-        const response = await fetch('http://localhost:8080/api/create-user', {
+        const response = await fetch('/api/create-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams(formData)

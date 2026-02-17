@@ -4,6 +4,7 @@ mod logger;
 
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use actix_cors::Cors;
+use actix_files as fs;
 use serde::{Deserialize, Serialize};
 use crate::user_info_formatter::format_user_greeting;
 
@@ -392,6 +393,11 @@ async fn main() -> std::io::Result<()> {
             .route("/api/create-user", web::post().to(create_user))
             .route("/api/login", web::post().to(login))
             .route("/api/users/{user_id}", web::get().to(get_user_info))
+            .service(
+                fs::Files::new("/", "./src/web")
+                    .index_file("index.html")
+                    .use_last_modified(true)
+            )
     })
     .bind(&bind_addr)?
     .run()

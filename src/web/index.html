@@ -16,7 +16,7 @@
 
       <div id="errorMessage" class="error-message hidden"></div>
 
-      <form id="loginForm" method="POST" action="http://localhost:8080/api/login">
+      <form id="loginForm" method="POST" action="/api/login">
         <div class="form-group">
           <label for="username">Username <span class="required">*</span></label>
           <input type="text" id="username" name="username" required placeholder="Enter username">
@@ -41,7 +41,7 @@
       e.preventDefault();
       const formData = new FormData(e.target);
       try {
-        const response = await fetch('http://localhost:8080/api/login', {
+        const response = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams(formData)
