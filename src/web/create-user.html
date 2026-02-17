@@ -14,9 +14,9 @@
       <h1>Create New User</h1>
       <h2>Fill in your information</h2>
 
-      <div id="errorMessage" class="error-message hidden"></div>
+      <div id="errorMessage" class="error-message"></div>
 
-      <form id="createUserForm" method="POST" action="/api/create-user">
+      <form method="POST" action="/api/create-user">
         <div class="form-group">
           <label for="username">Username <span class="required">*</span></label>
           <input type="text" id="username" name="username" required placeholder="Enter username">
@@ -62,27 +62,21 @@
   </div>
 
   <script>
-    document.getElementById('createUserForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      try {
-        const response = await fetch('/api/create-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams(formData)
-        });
-        if (response.ok) {
-          const userId = await response.text();
-          window.location.href = `user-info.html?user_id=${userId}`;
-        } else {
-          document.getElementById('errorMessage').textContent = 'Failed to create user';
-          document.getElementById('errorMessage').classList.remove('hidden');
-        }
-      } catch (err) {
-        document.getElementById('errorMessage').textContent = 'Network error';
-        document.getElementById('errorMessage').classList.remove('hidden');
-      }
-    });
+    // Display error message from query parameter if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    const errorElement = document.getElementById('errorMessage');
+    
+    if (error) {
+      const messages = {
+        'duplicate_username': 'Username already exists. Please choose another.',
+        'validation_error': 'Please check your input and try again.',
+        'database_error': 'Database connection failed. Please try again later.',
+        'server_error': 'An unexpected error occurred. Please try again.'
+      };
+      errorElement.textContent = messages[error] || 'An error occurred. Please try again.';
+      errorElement.classList.remove('hidden');
+    }
   </script>
 </body>
 
