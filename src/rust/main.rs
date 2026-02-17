@@ -4,6 +4,7 @@ mod logger;
 
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use actix_cors::Cors;
+use actix_files as fs;
 use serde::{Deserialize, Serialize};
 use crate::user_info_formatter::format_user_greeting;
 
@@ -104,62 +105,55 @@ async fn create_user(
 
     // Validate required fields
     if payload.username.is_empty() || payload.username.len() > 16 {
-        return HttpResponse::BadRequest().json(ErrorResponse {
-            error: "VALIDATION_ERROR".to_string(),
-            message: "Username is required and must be max 16 characters".to_string(),
-        });
+        return HttpResponse::SeeOther()
+            .append_header(("Location", "/create-user.html?error=validation_error"))
+            .finish();
     }
 
     if payload.password.is_empty() || payload.password.len() > 255 {
-        return HttpResponse::BadRequest().json(ErrorResponse {
-            error: "VALIDATION_ERROR".to_string(),
-            message: "Password is required and must be max 255 characters".to_string(),
-        });
+        return HttpResponse::SeeOther()
+            .append_header(("Location", "/create-user.html?error=validation_error"))
+            .finish();
     }
 
     // Validate optional fields length
     if let Some(ref first_name) = payload.first_name {
         if first_name.len() > 255 {
-            return HttpResponse::BadRequest().json(ErrorResponse {
-                error: "VALIDATION_ERROR".to_string(),
-                message: "first_name must be max 255 characters".to_string(),
-            });
+            return HttpResponse::SeeOther()
+                .append_header(("Location", "/create-user.html?error=validation_error"))
+                .finish();
         }
     }
 
     if let Some(ref last_name) = payload.last_name {
         if last_name.len() > 255 {
-            return HttpResponse::BadRequest().json(ErrorResponse {
-                error: "VALIDATION_ERROR".to_string(),
-                message: "last_name must be max 255 characters".to_string(),
-            });
+            return HttpResponse::SeeOther()
+                .append_header(("Location", "/create-user.html?error=validation_error"))
+                .finish();
         }
     }
 
     if let Some(ref email) = payload.email {
         if email.len() > 255 {
-            return HttpResponse::BadRequest().json(ErrorResponse {
-                error: "VALIDATION_ERROR".to_string(),
-                message: "email must be max 255 characters".to_string(),
-            });
+            return HttpResponse::SeeOther()
+                .append_header(("Location", "/create-user.html?error=validation_error"))
+                .finish();
         }
     }
 
     if let Some(ref title) = payload.title {
         if title.len() > 255 {
-            return HttpResponse::BadRequest().json(ErrorResponse {
-                error: "VALIDATION_ERROR".to_string(),
-                message: "title must be max 255 characters".to_string(),
-            });
+            return HttpResponse::SeeOther()
+                .append_header(("Location", "/create-user.html?error=validation_error"))
+                .finish();
         }
     }
 
     if let Some(ref hobby) = payload.hobby {
         if hobby.len() > 255 {
-            return HttpResponse::BadRequest().json(ErrorResponse {
-                error: "VALIDATION_ERROR".to_string(),
-                message: "hobby must be max 255 characters".to_string(),
-            });
+            return HttpResponse::SeeOther()
+                .append_header(("Location", "/create-user.html?error=validation_error"))
+                .finish();
         }
     }
 
@@ -196,30 +190,27 @@ async fn create_user(
     match state.db.create_user(&create_request).await {
         Ok(user_id) => {
             log_info!(state.http_client, "create_user", payload.username, "User created successfully with ID: {}", user_id);
-            HttpResponse::Ok()
-                .content_type("text/plain")
-                .body(user_id.to_string())
+            HttpResponse::SeeOther()
+                .append_header(("Location", format!("/user-info.html?user_id={}", user_id)))
+                .finish()
         }
         Err(DatabaseError::DuplicateUsername) => {
             log_info!(state.http_client, "create_user", payload.username, "Username already exists");
-            HttpResponse::Conflict().json(ErrorResponse {
-                error: "DUPLICATE_USERNAME".to_string(),
-                message: format!("Username '{}' already exists", payload.username),
-            })
+            HttpResponse::SeeOther()
+                .append_header(("Location", "/create-user.html?error=duplicate_username"))
+                .finish()
         }
         Err(DatabaseError::ConnectionError(_)) => {
             log_error!(state.http_client, "create_user", payload.username, "Database connection error");
-            HttpResponse::ServiceUnavailable().json(ErrorResponse {
-                error: "DATABASE_UNAVAILABLE".to_string(),
-                message: "Database connection failed".to_string(),
-            })
+            HttpResponse::SeeOther()
+                .append_header(("Location", "/create-user.html?error=database_error"))
+                .finish()
         }
         Err(e) => {
             log_error!(state.http_client, "create_user", payload.username, "Error creating user: {:?}", e);
-            HttpResponse::InternalServerError().json(ErrorResponse {
-                error: "INTERNAL_ERROR".to_string(),
-                message: "Failed to create user".to_string(),
-            })
+            HttpResponse::SeeOther()
+                .append_header(("Location", "/create-user.html?error=server_error"))
+                .finish()
         }
     }
 }
@@ -233,17 +224,15 @@ async fn login(
 
     // Validate required fields
     if payload.username.is_empty() {
-        return HttpResponse::BadRequest().json(ErrorResponse {
-            error: "VALIDATION_ERROR".to_string(),
-            message: "Username is required".to_string(),
-        });
+        return HttpResponse::SeeOther()
+            .append_header(("Location", "/index.html?error=validation_error"))
+            .finish();
     }
 
     if payload.password.is_empty() {
-        return HttpResponse::BadRequest().json(ErrorResponse {
-            error: "VALIDATION_ERROR".to_string(),
-            message: "Password is required".to_string(),
-        });
+        return HttpResponse::SeeOther()
+            .append_header(("Location", "/index.html?error=validation_error"))
+            .finish();
     }
 
     match state.db.authenticate_user(&payload.username).await {
@@ -251,37 +240,33 @@ async fn login(
             // Compare passwords (plain-text comparison as per design)
             if stored_password == payload.password {
                 log_info!(state.http_client, "login_user", payload.username, "Successful login");
-                HttpResponse::Ok()
-                    .content_type("text/plain")
-                    .body(user_id.to_string())
+                HttpResponse::SeeOther()
+                    .append_header(("Location", format!("/user-info.html?user_id={}", user_id)))
+                    .finish()
             } else {
                 log_info!(state.http_client, "login_user", payload.username, "Invalid password");
-                HttpResponse::Unauthorized().json(ErrorResponse {
-                    error: "INVALID_CREDENTIALS".to_string(),
-                    message: "Invalid username or password".to_string(),
-                })
+                HttpResponse::SeeOther()
+                    .append_header(("Location", "/index.html?error=invalid_credentials"))
+                    .finish()
             }
         }
         Err(DatabaseError::UserNotFound) => {
             log_info!(state.http_client, "login_user", payload.username, "User not found during login");
-            HttpResponse::Unauthorized().json(ErrorResponse {
-                error: "INVALID_CREDENTIALS".to_string(),
-                message: "Invalid username or password".to_string(),
-            })
+            HttpResponse::SeeOther()
+                .append_header(("Location", "/index.html?error=invalid_credentials"))
+                .finish()
         }
         Err(DatabaseError::ConnectionError(_)) => {
             log_error!(state.http_client, "login_user", payload.username, "Database connection error");
-            HttpResponse::ServiceUnavailable().json(ErrorResponse {
-                error: "DATABASE_UNAVAILABLE".to_string(),
-                message: "Database connection failed".to_string(),
-            })
+            HttpResponse::SeeOther()
+                .append_header(("Location", "/index.html?error=database_error"))
+                .finish()
         }
         Err(e) => {
             log_error!(state.http_client, "login_user", payload.username, "Error during login: {:?}", e);
-            HttpResponse::InternalServerError().json(ErrorResponse {
-                error: "INTERNAL_ERROR".to_string(),
-                message: "Login failed".to_string(),
-            })
+            HttpResponse::SeeOther()
+                .append_header(("Location", "/index.html?error=server_error"))
+                .finish()
         }
     }
 }
@@ -392,6 +377,11 @@ async fn main() -> std::io::Result<()> {
             .route("/api/create-user", web::post().to(create_user))
             .route("/api/login", web::post().to(login))
             .route("/api/users/{user_id}", web::get().to(get_user_info))
+            .service(
+                fs::Files::new("/", "./src/web")
+                    .index_file("index.html")
+                    .use_last_modified(true)
+            )
     })
     .bind(&bind_addr)?
     .run()

@@ -248,6 +248,11 @@ button:disabled {
   font-size: 0.95rem;
 }
 
+/* Hide empty error messages */
+.error-message:empty {
+  display: none;
+}
+
 [data-theme="dark"] .error-message {
   background-color: #3a1f1f;
   color: #ff6b6b;

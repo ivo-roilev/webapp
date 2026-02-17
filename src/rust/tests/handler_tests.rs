@@ -98,6 +98,40 @@ fn assert_error_response(body: &Value, expected_error: &str) {
     );
 }
 
+/// Assert redirect response with expected location pattern
+fn assert_redirect(resp: &ServiceResponse, expected_location_contains: &str) {
+    assert_eq!(resp.status().as_u16(), 303, "Should return 303 See Other");
+    let location = resp
+        .headers()
+        .get("Location")
+        .expect("Should have Location header")
+        .to_str()
+        .unwrap();
+    assert!(
+        location.contains(expected_location_contains),
+        "Location '{}' should contain '{}'",
+        location,
+        expected_location_contains
+    );
+}
+
+/// Extract user_id from redirect location
+fn extract_user_id_from_location(resp: &ServiceResponse) -> i32 {
+    let location = resp
+        .headers()
+        .get("Location")
+        .expect("Should have Location header")
+        .to_str()
+        .unwrap();
+    // Parse user_id from: /user-info.html?user_id=123
+    location
+        .split("user_id=")
+        .nth(1)
+        .expect("Should have user_id parameter")
+        .parse()
+        .expect("user_id should be valid integer")
+}
+
 // ============ Create User Tests ============
 
 #[actix_web::test]
@@ -119,11 +153,9 @@ async fn test_create_user_success() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 200, "Should return 200 OK");
-
-    let body = test::read_body(resp).await;
-    let user_id_str = std::str::from_utf8(&body).unwrap();
-    let user_id: i32 = user_id_str.parse().expect("Should return valid user_id");
+    assert_redirect(&resp, "/user-info.html?user_id=");
+    
+    let user_id = extract_user_id_from_location(&resp);
     assert!(user_id > 0, "user_id should be positive");
 }
 
@@ -152,11 +184,9 @@ async fn test_create_user_with_optional_fields() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 200);
-
-    let body = test::read_body(resp).await;
-    let user_id_str = std::str::from_utf8(&body).unwrap();
-    let user_id: i32 = user_id_str.parse().expect("Should return valid user_id");
+    assert_redirect(&resp, "/user-info.html?user_id=");
+    
+    let user_id = extract_user_id_from_location(&resp);
     assert!(user_id > 0);
 }
 
@@ -174,10 +204,7 @@ async fn test_create_user_username_too_long() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 400);
-
-    let body: Value = test::read_body_json(resp).await;
-    assert_error_response(&body, "VALIDATION_ERROR");
+    assert_redirect(&resp, "/create-user.html?error=validation_error");
 }
 
 #[actix_web::test]
@@ -191,10 +218,7 @@ async fn test_create_user_empty_username() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 400);
-
-    let body: Value = test::read_body_json(resp).await;
-    assert_error_response(&body, "VALIDATION_ERROR");
+    assert_redirect(&resp, "/create-user.html?error=validation_error");
 }
 
 #[actix_web::test]
@@ -209,10 +233,7 @@ async fn test_create_user_password_too_long() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 400);
-
-    let body: Value = test::read_body_json(resp).await;
-    assert_error_response(&body, "VALIDATION_ERROR");
+    assert_redirect(&resp, "/create-user.html?error=validation_error");
 }
 
 #[actix_web::test]
@@ -226,10 +247,7 @@ async fn test_create_user_empty_password() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 400);
-
-    let body: Value = test::read_body_json(resp).await;
-    assert_error_response(&body, "VALIDATION_ERROR");
+    assert_redirect(&resp, "/create-user.html?error=validation_error");
 }
 
 #[actix_web::test]
@@ -248,10 +266,7 @@ async fn test_create_user_optional_field_too_long() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 400);
-
-    let body: Value = test::read_body_json(resp).await;
-    assert_error_response(&body, "VALIDATION_ERROR");
+    assert_redirect(&resp, "/create-user.html?error=validation_error");
 }
 
 #[actix_web::test]
@@ -275,10 +290,7 @@ async fn test_create_user_duplicate_username() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 409);
-
-    let body: Value = test::read_body_json(resp).await;
-    assert_error_response(&body, "DUPLICATE_USERNAME");
+    assert_redirect(&resp, "/create-user.html?error=duplicate_username");
 }
 
 #[actix_web::test]
@@ -300,7 +312,7 @@ async fn test_create_user_logs_to_logger() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 200);
+    assert_redirect(&resp, "/user-info.html?user_id=");
 
     // Give async logging time to complete
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -324,15 +336,9 @@ async fn test_create_user_logger_failure_doesnt_break_creation() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(
-        resp.status().as_u16(),
-        200,
-        "User creation should succeed despite logger failure"
-    );
-
-    let body = test::read_body(resp).await;
-    let user_id_str = std::str::from_utf8(&body).unwrap();
-    let user_id: i32 = user_id_str.parse().expect("Should return valid user_id");
+    assert_redirect(&resp, "/user-info.html?user_id=");
+    
+    let user_id = extract_user_id_from_location(&resp);
     assert!(user_id > 0);
 }
 
@@ -357,11 +363,9 @@ async fn test_login_success() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 200);
-
-    let body = test::read_body(resp).await;
-    let user_id_str = std::str::from_utf8(&body).unwrap();
-    let user_id: i32 = user_id_str.parse().expect("Should return valid user_id");
+    assert_redirect(&resp, "/user-info.html?user_id=");
+    
+    let user_id = extract_user_id_from_location(&resp);
     assert!(user_id > 0);
 }
 
@@ -384,10 +388,7 @@ async fn test_login_incorrect_password() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 401);
-
-    let body: Value = test::read_body_json(resp).await;
-    assert_error_response(&body, "INVALID_CREDENTIALS");
+    assert_redirect(&resp, "/index.html?error=invalid_credentials");
 }
 
 #[actix_web::test]
@@ -407,10 +408,7 @@ async fn test_login_nonexistent_user() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 401);
-
-    let body: Value = test::read_body_json(resp).await;
-    assert_error_response(&body, "INVALID_CREDENTIALS");
+    assert_redirect(&resp, "/index.html?error=invalid_credentials");
 }
 
 #[actix_web::test]
@@ -433,7 +431,7 @@ async fn test_login_logs_attempt_and_success() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(resp.status().as_u16(), 200);
+    assert_redirect(&resp, "/user-info.html?user_id=");
 
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 }
@@ -608,15 +606,9 @@ async fn test_logger_failure_simulation() {
         .to_request();
 
     let resp: ServiceResponse = test::call_service(&app, req).await;
-    assert_eq!(
-        resp.status().as_u16(),
-        200,
-        "Handler should succeed despite logger failure"
-    );
-
-    let body = test::read_body(resp).await;
-    let user_id_str = std::str::from_utf8(&body).unwrap();
-    let user_id: i32 = user_id_str.parse().expect("Should return valid user_id");
+    assert_redirect(&resp, "/user-info.html?user_id=");
+    
+    let user_id = extract_user_id_from_location(&resp);
     assert!(user_id > 0);
 }
 
